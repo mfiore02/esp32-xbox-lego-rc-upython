@@ -27,6 +27,44 @@ This guide explains how to test the Xbox LEGO RC Controller components on your E
    ```
    Replace `COM_PORT` with your actual port (e.g., COM3 on Windows)
 
+## CRITICAL BLE Requirements (Phase 1 Validated)
+
+The following requirements were discovered through hardware testing and are **ESSENTIAL** for successful operation:
+
+### 1. Active BLE Scanning
+- All BLE scans **MUST** use `active=True` parameter
+- Without this, device names will not be received
+- This is already implemented in `ble_utils.py`
+- **Symptom if missing:** "No device matching 'xbox' found" or "No device matching 'technic move' found"
+
+### 2. LEGO Hub Pairing Requirement
+- The LEGO hub **REQUIRES** pairing with `bond=True`
+- Without pairing, the hub connects but **ignores ALL commands**
+- This is already implemented in `lego_client.py`
+- **Symptom if missing:** Hub connects successfully but RC car doesn't respond to any commands
+
+### 3. Xbox Controller Pairing Requirement
+- The Xbox controller **REQUIRES** pairing with `bond=True`
+- Without pairing, controller stays in pairing mode (rapid blinking)
+- This is already implemented in `xbox_client.py`
+- **Symptom if missing:** Controller light keeps blinking rapidly, PC detects controller as available for pairing when ESP32 disconnects
+
+### 4. Xbox Controller Report Map Initialization
+- The Xbox controller **REQUIRES** reading the HID Report Map (UUID 0x2A4B)
+- This must be done AFTER pairing but BEFORE subscribing to notifications
+- Without this, the controller will NOT send any input data
+- This is already implemented in `xbox_client.py`
+- **Symptom if missing:** Controller connects and pairs, but no input reports are received even when pressing buttons
+
+### 5. Event-Driven Xbox Input
+- The Xbox controller uses event-driven notifications
+- Input reports are ONLY sent when controller state changes
+- No periodic updates or heartbeat
+- This is normal HID behavior and reduces BLE traffic
+- Test scripts use `characteristic.notified()` to wait for events
+
+**All of these requirements are already implemented in the current code.** This section documents them for troubleshooting and future reference.
+
 ## Installing Required Libraries
 
 The code uses `aioble` which needs to be installed on the ESP32:
@@ -107,9 +145,13 @@ Calibrating steering...
 ```
 
 **Troubleshooting:**
-- If hub not found: Make sure it's powered on and blinking (pairing mode)
-- If connection fails: Try power cycling the hub
-- If commands don't work: Check that calibration completed successfully
+- **Hub not found:** Make sure it's powered on and blinking (pairing mode). Verify `active=True` is used in scanning (already implemented).
+- **Connection fails:** Try power cycling the hub. Move closer to reduce interference.
+- **Commands don't work (car doesn't move):**
+  - CRITICAL: Hub requires pairing with `bond=True` (already implemented in lego_client.py)
+  - Check that connection shows "Paired successfully!" in output
+  - Try power cycling the hub and reconnecting
+  - Verify calibration completed successfully
 
 ### Test 2: Xbox Controller Connection
 
@@ -144,9 +186,18 @@ Press any button on the controller...
 ```
 
 **Troubleshooting:**
-- Controller not found: Make sure it's in pairing mode (rapidly flashing)
-- Connection timeout: Controller may have paired with another device - unpair it first
-- No input data: Try pressing buttons and moving sticks
+- **Controller not found:** Make sure it's in pairing mode (rapidly flashing). Hold Xbox button + pairing button until rapid flashing. Verify `active=True` is used in scanning (already implemented).
+- **Connection timeout:** Controller may have paired with another device - unpair it first. Power cycle the controller.
+- **Controller stays in pairing mode (rapid blinking):**
+  - CRITICAL: Controller requires pairing with `bond=True` (already implemented in xbox_client.py)
+  - Check that connection shows "Paired successfully!" in output
+  - Power cycle controller and try again
+- **No input data received:**
+  - CRITICAL: Controller requires reading HID Report Map (0x2A4B) before sending data (already implemented in xbox_client.py)
+  - Check that connection shows "Report Map read: X bytes" in output
+  - Input is event-driven - controller only sends data when you press buttons or move sticks
+  - Try pressing buttons and moving analog sticks
+  - If using custom code, ensure Report Map is read AFTER pairing but BEFORE subscribing
 
 ### Quick Tests
 

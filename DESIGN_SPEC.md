@@ -155,12 +155,46 @@ async def get_connection_status() -> dict
 **Key APIs:**
 ```python
 async def connect(address: str) -> bool
-async def read_inputs() -> ControllerState
-def get_left_stick() -> (float, float)
-def get_right_stick() -> (float, float)
-def get_triggers() -> (float, float)
-def get_buttons() -> dict
+async def start_input_loop(callback=None)
+def parse_hid_report(report: bytes)
+def get_state() -> ControllerState
+def set_dead_zone(dead_zone: float)
+async def wait_for_button(button_name: str, timeout_ms: int) -> bool
 ```
+
+**CRITICAL Initialization Sequence:**
+```python
+# Step 1: Connect to device
+connection = await device.connect(timeout_ms=10000)
+
+# Step 2: Discover HID service and characteristics
+hid_service = await connection.service(bluetooth.UUID(0x1812))
+report_characteristic = await hid_service.characteristic(bluetooth.UUID(0x2A4D))
+
+# Step 3: REQUIRED - Pair with controller
+await connection.pair(bond=True)
+
+# Step 4: REQUIRED - Read Report Map to initialize controller
+report_map_char = await hid_service.characteristic(bluetooth.UUID(0x2A4B))
+report_map = await report_map_char.read()
+
+# Step 5: Subscribe to notifications
+await report_characteristic.subscribe(notify=True)
+
+# Step 6: Read input reports as they arrive (event-driven)
+report = await report_characteristic.notified()
+```
+
+**HID Report Format (15 bytes minimum):**
+- Bytes 0-1: Left stick X (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 2-3: Left stick Y (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 4-5: Right stick X (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 6-7: Right stick Y (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 8-9: Left trigger (uint16 LE, 0-1023 → 0.0 to 1.0)
+- Bytes 10-11: Right trigger (uint16 LE, 0-1023 → 0.0 to 1.0)
+- Byte 12: D-pad (bit pattern)
+- Byte 13: Buttons (A=0x01, B=0x02, X=0x08, Y=0x10, LB=0x40, RB=0x80)
+- Byte 14: More buttons (View=0x04, Menu=0x08, LS=0x20, RS=0x40, Share=0x01)
 
 **Data Structure:**
 ```python
@@ -185,21 +219,43 @@ class ControllerState:
 
 **Key APIs:**
 ```python
-async def connect(address: str) -> bool
+async def connect(device) -> bool
+async def disconnect()
 async def drive(speed: int, angle: int, lights: int)
 async def motor_start_power(motor_id: int, power: int)
 async def motor_stop(motor_id: int, brake: bool)
 async def change_led_color(r: int, g: int, b: int)
 async def calibrate_steering()
+def is_connected() -> bool
+```
+
+**CRITICAL Initialization Sequence:**
+```python
+# Step 1: Connect to device
+connection = await device.connect(timeout_ms=10000)
+
+# Step 2: Discover LEGO service and characteristic
+service = await connection.service(LEGO_SERVICE_UUID)
+characteristic = await service.characteristic(LEGO_CHARACTERISTIC_UUID)
+
+# Step 3: REQUIRED - Pair with hub
+await connection.pair(bond=True)  # CRITICAL - hub ignores commands without this
+
+# Step 4: Send commands
+await characteristic.write(command_bytes, response=True)
 ```
 
 **BLE Protocol Details:**
 - Service UUID: `00001623-1212-EFDE-1623-785FEABCD123`
 - Characteristic UUID: `00001624-1212-EFDE-1623-785FEABCD123`
-- Command Format (Drive):
+- **Pairing:** REQUIRED with `bond=True` - hub will connect but ignore all commands without pairing
+- **Command Format (Drive):**
   ```
   [0x0d, 0x00, 0x81, 0x36, 0x11, 0x51, 0x00, 0x03, 0x00, speed, angle, lights, 0x00]
   ```
+  - speed: -100 to 100 (signed byte, forward/reverse)
+  - angle: -100 to 100 (signed byte, left/right steering)
+  - lights: 0x00=off, 0x64=on, or RGB pattern
 
 #### 4.1.4 Input Translator (`input_translator.py`)
 **Responsibilities:**
@@ -366,24 +422,44 @@ def is_low_battery() -> bool
 
 ## 5. Development Phases
 
-### Phase 1: Core BLE Connectivity (Week 1-2)
+### Phase 1: Core BLE Connectivity (Week 1-2) ✓ COMPLETE
 **Objectives:**
-- Port LEGO hub connection to MicroPython/aioble
-- Implement Xbox controller BLE connection
-- Test dual simultaneous connections
-- Verify command transmission to LEGO hub
+- Port LEGO hub connection to MicroPython/aioble ✓
+- Implement Xbox controller BLE connection ✓
+- Test individual device connections ✓
+- Verify command transmission to LEGO hub ✓
+- Document BLE requirements and critical initialization steps ✓
 
 **Deliverables:**
-- `lego_client.py` - Working LEGO hub connection and motor control
-- `xbox_client.py` - Working Xbox controller connection and input reading
-- `ble_manager.py` - Dual connection management
-- Test scripts for individual components
+- `lego_client.py` - Working LEGO hub connection and motor control ✓
+- `xbox_client.py` - Working Xbox controller connection and input reading ✓
+- `utils/ble_utils.py` - BLE scanning utilities with active scanning ✓
+- `utils/math_utils.py` - Input processing utilities ✓
+- `testing/test_lego_hub.py` - Comprehensive LEGO hub test suite (8 tests) ✓
+- `testing/test_xbox_controller.py` - Comprehensive Xbox controller test suite (7 tests) ✓
+- `testing/discover_xbox_characteristics.py` - BLE service discovery tool ✓
+- `testing/discover_xbox_setup.py` - Systematic initialization testing tool ✓
+- `tools/deploy.py` - Automated deployment script ✓
+- `docs/testing_guide.md` - Comprehensive testing documentation ✓
+- `TESTING_QUICKSTART.md` - Quick start testing guide ✓
 
 **Success Criteria:**
-- Successfully connect to both devices simultaneously
-- Send motor commands to LEGO hub
-- Receive input data from Xbox controller
-- Maintain stable connections for 10+ minutes
+- Successfully connect to LEGO hub ✓
+- Send motor commands to LEGO hub and control RC car ✓
+- Successfully connect to Xbox controller ✓
+- Receive real-time input data from Xbox controller ✓
+- Validated all critical BLE requirements through hardware testing ✓
+
+**Critical Discoveries:**
+1. Active scanning (`active=True`) required for device name discovery
+2. Both devices require pairing with `bond=True`
+3. Xbox controller requires reading Report Map (0x2A4B) before sending input
+4. Xbox controller uses event-driven notifications (only sends on state change)
+5. Systematic testing revealed undocumented initialization requirements
+
+**Next Steps:**
+- Implement BLE manager for dual simultaneous connections (Phase 2)
+- Create input translator to map Xbox inputs to LEGO commands (Phase 2)
 
 ### Phase 2: Control Loop Implementation (Week 3)
 **Objectives:**
@@ -457,6 +533,56 @@ def is_low_battery() -> bool
 - **Connection Range:** 10+ meters line-of-sight
 - **Auto-reconnect:** Attempt reconnection within 5 seconds of disconnect
 - **Pairing:** Support BLE pairing with both devices
+
+### 6.2.1 CRITICAL BLE Implementation Requirements (Validated in Phase 1)
+
+The following requirements were discovered during Phase 1 hardware testing and are ESSENTIAL for successful BLE operation:
+
+1. **Active Scanning Required**
+   - BLE scanning MUST use `active=True` parameter in aioble.scan()
+   - Without active scanning, scan response packets are not received
+   - Device names are contained in scan response packets, not advertising packets
+   - Passive scanning will cause all device discovery to fail
+   ```python
+   # REQUIRED:
+   async with aioble.scan(duration_ms=timeout_ms, active=True) as scanner:
+   ```
+
+2. **LEGO Hub Pairing Requirement**
+   - The LEGO Technic Move Hub REQUIRES pairing with `bond=True`
+   - Without pairing, the hub will connect but ignore ALL commands
+   - This creates an authenticated encrypted link required by the hub
+   - Must be done after connection but before sending commands
+   ```python
+   await connection.pair(bond=True)  # CRITICAL for LEGO hub
+   ```
+
+3. **Xbox Controller Pairing Requirement**
+   - The Xbox controller REQUIRES pairing to exit pairing mode
+   - Without pairing, controller stays in pairing mode (rapid blinking)
+   - PC will detect controller as available for pairing after ESP32 disconnect
+   - Must be done after connection but before reading Report Map
+   ```python
+   await connection.pair(bond=True)  # CRITICAL for Xbox controller
+   ```
+
+4. **Xbox Controller Report Map Initialization**
+   - The Xbox controller REQUIRES reading the HID Report Map (0x2A4B) before it will send input data
+   - This is an undocumented requirement discovered through systematic testing
+   - Without this step, the controller will NOT send any HID notifications
+   - Must be done AFTER pairing but BEFORE subscribing to notifications
+   ```python
+   # CRITICAL: Read Report Map to initialize controller
+   report_map_char = await hid_service.characteristic(bluetooth.UUID(0x2A4B))
+   report_map = await report_map_char.read()
+   ```
+
+5. **Event-Driven Xbox Controller Input**
+   - The Xbox controller uses event-driven notifications
+   - Input reports are ONLY sent when controller state changes
+   - No periodic "heartbeat" or constant stream of data
+   - Applications must use `characteristic.notified()` to wait for events
+   - This is normal HID behavior and reduces BLE traffic
 
 ### 6.3 MicroPython Constraints
 - **Library Availability:** Limited to MicroPython-compatible libraries
@@ -609,3 +735,4 @@ esp32-xbox-lego-rc-upython/
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-31 | Claude | Initial design specification |
+| 1.1 | 2025-10-31 | Claude | Added Phase 1 critical discoveries, updated BLE requirements with validated findings, documented Xbox Report Map requirement, documented pairing requirements for both devices, updated Phase 1 status to complete |
