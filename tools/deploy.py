@@ -22,6 +22,32 @@ import sys
 import os
 from pathlib import Path
 
+libs = [
+    "aioble",
+]
+
+utils = [
+    "src/utils/constants.py",
+    "src/utils/ble_utils.py",
+    "src/utils/math_utils.py",
+    "src/utils/__init__.py",
+]
+
+sources = [
+    "src/lego_client.py",
+    "src/xbox_client.py",
+    "src/ble_manager.py",
+]
+
+
+
+tests = [
+    "testing/ble_scan.py",
+    "testing/test_lego_hub.py",
+    "testing/test_xbox_controller.py",
+    "testing/test_ble_manager.py",
+]
+
 
 def run_mpremote(args, verbose=True):
     """Run mpremote command."""
@@ -62,20 +88,13 @@ def deploy_utils(port_arg):
     """Deploy utility modules."""
     print("\n=== Deploying utility modules ===")
 
-    files = [
-        "src/utils/constants.py",
-        "src/utils/ble_utils.py",
-        "src/utils/math_utils.py",
-        "src/utils/__init__.py",
-    ]
-
     # Create directories
     run_mpremote(port_arg + ["mkdir", ":src"])
     run_mpremote(port_arg + ["mkdir", ":src/utils"])
 
     # Upload files
     root = get_project_root()
-    for file in files:
+    for file in utils:
         src = root / file
         dst = f":{file}"
         if not src.exists():
@@ -94,13 +113,8 @@ def deploy_clients(port_arg):
     """Deploy client modules."""
     print("\n=== Deploying client modules ===")
 
-    files = [
-        "src/lego_client.py",
-        "src/xbox_client.py",
-    ]
-
     root = get_project_root()
-    for file in files:
+    for file in sources:
         src = root / file
         dst = f":{file}"
         if not src.exists():
@@ -119,14 +133,8 @@ def deploy_tests(port_arg):
     """Deploy test scripts."""
     print("\n=== Deploying test scripts ===")
 
-    files = [
-        "testing/ble_scan.py",
-        "testing/test_lego_hub.py",
-        "testing/test_xbox_controller.py",
-    ]
-
     root = get_project_root()
-    for file in files:
+    for file in tests:
         src = root / file
         dst = f":{Path(file).name}"
         if not src.exists():
@@ -144,11 +152,13 @@ def deploy_tests(port_arg):
 def install_libraries(port_arg):
     """Install required MicroPython libraries."""
     print("\n=== Installing required libraries ===")
-    print("Installing aioble...")
 
-    if not run_mpremote(port_arg + ["mip", "install", "aioble"]):
-        print("Failed to install aioble")
-        return False
+    for lib in libs:
+        print(f"Installing {lib}...")
+
+        if not run_mpremote(port_arg + ["mip", "install", lib]):
+            print(f"Failed to install {lib}")
+            return False
 
     print("✓ Libraries installed")
     return True
@@ -168,15 +178,6 @@ def clean_device(port_arg):
     dirs_to_remove = [":src", ":testing"]
     for d in dirs_to_remove:
         run_mpremote(port_arg + ["rm", "-rf", d], verbose=False)
-
-    # Remove test scripts
-    files_to_remove = [
-        ":ble_scan.py",
-        ":test_lego_hub.py",
-        ":test_xbox_controller.py",
-    ]
-    for f in files_to_remove:
-        run_mpremote(port_arg + ["rm", f], verbose=False)
 
     print("✓ Device cleaned")
     return True
@@ -200,7 +201,7 @@ def main():
     parser.add_argument(
         "--test",
         action="store_true",
-        help="Also deploy test scripts"
+        help=f"Also deploy test scripts: {" ".join([test for test in tests])}"
     )
     parser.add_argument(
         "--clean",
@@ -210,7 +211,7 @@ def main():
     parser.add_argument(
         "--libs",
         action="store_true",
-        help="Install required libraries (aioble)"
+        help=f"Install required libraries: {" ".join([lib for lib in libs])}",
     )
     parser.add_argument(
         "--list",

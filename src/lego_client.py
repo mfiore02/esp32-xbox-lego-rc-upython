@@ -16,6 +16,9 @@ from utils.constants import (
 )
 from utils.ble_utils import format_mac_address, bytes_to_hex
 
+# Lego hub device name
+LEGO_DEVICE_NAME = "Technic Move"
+
 
 class LegoClient:
     """
