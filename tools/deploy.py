@@ -27,25 +27,30 @@ libs = [
 ]
 
 utils = [
-    "src/utils/constants.py",
-    "src/utils/ble_utils.py",
-    "src/utils/math_utils.py",
     "src/utils/__init__.py",
+    "src/utils/ble_utils.py",
+    "src/bonding_utils.py",
+    "src/utils/constants.py",
+    "src/utils/math_utils.py",
 ]
 
 sources = [
-    "src/lego_client.py",
-    "src/xbox_client.py",
     "src/ble_manager.py",
+    "src/input_translator.py",
+    "src/lego_client.py",
+    "src/main.py",
+    "src/xbox_client.py",
+    "boot.py",
 ]
 
 
 
 tests = [
     "testing/ble_scan.py",
+    "testing/test_ble_manager.py",
+    "testing/test_input_translator.py",
     "testing/test_lego_hub.py",
     "testing/test_xbox_controller.py",
-    "testing/test_ble_manager.py",
 ]
 
 

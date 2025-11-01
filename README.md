@@ -2,7 +2,7 @@
 
 Control your LEGO Technic Move Hub (set 42176) wirelessly with an Xbox One controller via an ESP32-S3 BLE bridge.
 
-![Project Status](https://img.shields.io/badge/Phase%201-Complete-brightgreen)
+![Project Status](https://img.shields.io/badge/Phase%202-Complete-brightgreen)
 ![MicroPython](https://img.shields.io/badge/MicroPython-v1.20+-blue)
 ![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Supported-orange)
 
@@ -13,11 +13,14 @@ This project creates a wireless bridge between an Xbox Wireless Controller and a
 ### Key Features
 
 - **Dual BLE Connections:** Simultaneous connections to Xbox controller and LEGO hub
-- **Real-Time Control:** Low-latency input translation (<50ms target)
+- **Real-Time Control:** Low-latency input translation with event-driven architecture
 - **Full Input Support:** All buttons, analog sticks, triggers, and D-pad
-- **Motor Control:** Drive, steering, and LED control for LEGO Technic vehicles
-- **Event-Driven:** Efficient BLE communication using notifications
-- **Comprehensive Testing:** 15+ test scripts validating all functionality
+- **Control Modes:** Normal, Turbo, and Slow modes with configurable speed limits
+- **Smart Input Curves:** Exponential control curves for smooth, precise control
+- **LED Control:** Toggle headlights and taillights independently
+- **Motor Control:** Dual motor drive with steering, brake, and boost
+- **Auto-Recovery:** Bonding data management ensures reliable reconnections
+- **Comprehensive Testing:** 35+ test scripts validating all functionality
 - **Well Documented:** Complete design spec, testing guides, and API documentation
 
 ## Hardware Requirements
@@ -73,6 +76,16 @@ mpremote
 >>> test_xbox_controller.run()
 ```
 
+### 5. Run the RC Car!
+
+```bash
+# In REPL
+>>> import src.main as main
+>>> main.run()
+```
+
+**Control your RC car with the Xbox controller!**
+
 See [TESTING_QUICKSTART.md](TESTING_QUICKSTART.md) for detailed instructions.
 
 ## Project Status
@@ -95,13 +108,24 @@ See [TESTING_QUICKSTART.md](TESTING_QUICKSTART.md) for detailed instructions.
 
 All requirements are implemented and validated on hardware.
 
-### 🔄 Phase 2: Control Loop (IN PROGRESS)
+### ✓ Phase 2: Control Loop (COMPLETE)
 
-**Next Steps:**
-- Implement BLE manager for dual simultaneous connections
-- Create input translator (Xbox inputs → LEGO commands)
-- Develop main control loop
-- Test integrated system
+**Achievements:**
+- ✓ BLE Manager for dual simultaneous connections
+- ✓ Input Translator with control modes (normal/turbo/slow)
+- ✓ Main control loop with real-time translation
+- ✓ Bonding data management utilities
+- ✓ Comprehensive test suites (11 additional tests)
+- ✓ Auto-start boot script
+
+**Critical Discoveries:**
+1. **Timing Loops:** Event-driven loops need time-based duration tracking, not iteration counting
+2. **Y-Axis Inversion:** Controller Y-axis requires negation (raw low value = up)
+3. **D-Pad Encoding:** Standard 8-direction encoding (0=center, 1=up, 2=up-right, etc.)
+4. **Bonding Data Staleness:** `ble_secrets.json` can become stale, causing address resolution failures
+5. **Session-Based Bonding:** Auto-deleting bonding data on startup ensures reliable reconnection
+
+Ready for integrated hardware testing!
 
 ### 📋 Phase 3: Display & UI (PLANNED)
 
@@ -131,16 +155,23 @@ esp32-xbox-lego-rc-upython/
 ├── README.md                           # This file
 ├── DESIGN_SPEC.md                      # Complete design specification
 ├── TESTING_QUICKSTART.md               # Quick start testing guide
+├── boot.py                             # Auto-start boot script
 ├── src/
+│   ├── main.py                         # Main control loop (Phase 2)
+│   ├── ble_manager.py                  # Dual BLE connection manager (Phase 2)
+│   ├── input_translator.py             # Xbox → LEGO command translator (Phase 2)
 │   ├── lego_client.py                  # LEGO hub BLE client
 │   ├── xbox_client.py                  # Xbox controller BLE client
 │   └── utils/
 │       ├── constants.py                # BLE UUIDs, motor IDs, constants
 │       ├── ble_utils.py                # BLE scanning utilities
-│       └── math_utils.py               # Input processing utilities
+│       ├── math_utils.py               # Input processing utilities
+│       └── bonding_utils.py            # Bonding data management (Phase 2)
 ├── testing/
 │   ├── test_lego_hub.py                # LEGO hub test suite (8 tests)
-│   ├── test_xbox_controller.py         # Xbox controller test suite (7 tests)
+│   ├── test_xbox_controller.py         # Xbox controller test suite (9 tests)
+│   ├── test_ble_manager.py             # BLE manager test suite (7 tests, Phase 2)
+│   ├── test_input_translator.py        # Input translator test suite (11 tests, Phase 2)
 │   ├── discover_xbox_characteristics.py # BLE service discovery
 │   ├── discover_xbox_setup.py          # Initialization testing
 │   └── ble_scan.py                     # Simple BLE scanner
@@ -152,16 +183,29 @@ esp32-xbox-lego-rc-upython/
     └── LEGO Technic 42176 XBOX RC.py   # Desktop reference implementation
 ```
 
-## Control Mapping (Planned)
+## Control Mapping
 
 | Xbox Input | LEGO Function |
 |------------|---------------|
-| Left Stick X | Steering |
-| Right Stick Y | Throttle (Forward/Reverse) |
-| Triggers | Brake |
-| Y Button | Toggle Lights |
-| A Button | Confirm/Select |
-| B Button | Cancel/Back |
+| Left Stick Y | Forward/Backward (Motor A) |
+| Right Stick X | Left/Right Steering (Motor B) |
+| Left Trigger | Brake (reduces speed) |
+| Right Trigger | Boost (increases speed) |
+| A Button | Toggle Headlights (white) |
+| B Button | Toggle Taillights (red) |
+| X Button | Emergency Stop |
+| Y Button | *(Reserved)* |
+| LB Button | Cycle Control Mode |
+| RB Button | *(Reserved)* |
+| D-pad Up | Increase Speed Limit |
+| D-pad Down | Decrease Speed Limit |
+| Menu Button | *(Reserved)* |
+| View Button | *(Reserved)* |
+
+**Control Modes:**
+- **Normal:** Standard responsiveness (max 100%, quadratic curve)
+- **Turbo:** More aggressive response (max 100%, power 1.5 curve)
+- **Slow:** Precision control (max 50%, power 2.5 curve)
 
 ## Technical Highlights
 
@@ -279,6 +323,6 @@ MIT License - See source files for details.
 
 ---
 
-**Project Version:** 1.1
-**Last Updated:** 2025-10-31
-**Status:** Phase 1 Complete ✓
+**Project Version:** 2.0
+**Last Updated:** 2025-11-01
+**Status:** Phase 2 Complete ✓ - Ready for Hardware Testing
