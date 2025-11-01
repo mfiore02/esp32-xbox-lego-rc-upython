@@ -20,7 +20,7 @@ async def scan_for_device(name_pattern: str, timeout_ms: int = 5000):
     """
     print(f"Scanning for device matching '{name_pattern}'...")
 
-    async with aioble.scan(duration_ms=timeout_ms, interval_us=30000, window_us=30000) as scanner:
+    async with aioble.scan(duration_ms=timeout_ms, interval_us=30000, window_us=30000, active=True) as scanner:
         async for result in scanner:
             if result.name():
                 device_name = result.name().lower()
@@ -47,7 +47,7 @@ async def scan_for_multiple_devices(patterns: dict, timeout_ms: int = 10000):
     print(f"Scanning for multiple devices...")
     found_devices = {key: None for key in patterns.keys()}
 
-    async with aioble.scan(duration_ms=timeout_ms, interval_us=30000, window_us=30000) as scanner:
+    async with aioble.scan(duration_ms=timeout_ms, interval_us=30000, window_us=30000, active=True) as scanner:
         async for result in scanner:
             if result.name():
                 device_name = result.name().lower()

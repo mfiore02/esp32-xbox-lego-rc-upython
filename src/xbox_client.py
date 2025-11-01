@@ -171,8 +171,16 @@ class XboxClient:
                 await self.disconnect()
                 return False
 
-            # Pair without authentication (Xbox controllers typically don't require PIN)
-            # This happens automatically in aioble when subscribing to notifications
+            # Pair with the controller (required for it to send input data!)
+            # Without pairing, the controller stays in pairing mode and won't send HID reports
+            try:
+                print("Pairing with Xbox controller...")
+                await self.connection.pair(bond=True)
+                print("Paired successfully!")
+            except Exception as e:
+                print(f"Pairing failed: {e}")
+                print("Warning: Controller may not send input data without pairing")
+                # Don't fail here - try to continue anyway
 
             self.connected = True
             print("Xbox controller connected successfully!")

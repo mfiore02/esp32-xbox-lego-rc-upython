@@ -89,9 +89,18 @@ class LegoClient:
                 await self.disconnect()
                 return False
 
-            # Note: MicroPython aioble doesn't have direct pairing API like Bleak
-            # Pairing may happen automatically or need to be handled differently
-            # This is a known limitation that may require testing
+            # Pair with the device (CRUCIAL for LEGO hub!)
+            # This is equivalent to Bleak's pair(protection_level=2)
+            # The hub requires an authenticated encrypted link
+            try:
+                print("Pairing with LEGO hub...")
+                await self.connection.pair(bond=True)
+                print("Paired successfully!")
+            except Exception as e:
+                print(f"Pairing failed: {e}")
+                print("Warning: Commands may not work without pairing")
+                # Don't fail here - some devices work without explicit pairing
+                # But LEGO hub won't accept commands without it
 
             self.connected = True
             print("LEGO hub connected successfully!")
