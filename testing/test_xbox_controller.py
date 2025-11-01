@@ -16,6 +16,7 @@ Usage:
 
 import asyncio
 import sys
+import time
 
 # Add src to path for imports
 sys.path.append('/src')
@@ -178,11 +179,14 @@ async def test_analog_inputs(client):
 
     # Read reports directly for 10 seconds (don't start a new input loop)
     try:
-        for _ in range(10):
+        start_time = time.ticks_ms()
+        duration_ms = 10000
+
+        while time.ticks_diff(time.ticks_ms(), start_time) < duration_ms:
             try:
                 report = await asyncio.wait_for(
                     client.report_characteristic.notified(),
-                    timeout=1.0
+                    timeout=0.5
                 )
                 if report:
                     input_count[0] += 1
@@ -228,11 +232,14 @@ async def test_dpad(client):
 
     # Read reports directly for 10 seconds
     try:
-        for _ in range(10):
+        start_time = time.ticks_ms()
+        duration_ms = 10000
+
+        while time.ticks_diff(time.ticks_ms(), start_time) < duration_ms:
             try:
                 report = await asyncio.wait_for(
                     client.report_characteristic.notified(),
-                    timeout=1.0
+                    timeout=0.5
                 )
                 if report:
                     client.parse_hid_report(report)
@@ -281,11 +288,14 @@ async def test_continuous_input(client, duration=15):
 
     # Read reports directly for the duration
     try:
-        for _ in range(duration):
+        start_time = time.ticks_ms()
+        duration_ms = duration * 1000
+
+        while time.ticks_diff(time.ticks_ms(), start_time) < duration_ms:
             try:
                 report = await asyncio.wait_for(
                     client.report_characteristic.notified(),
-                    timeout=1.0
+                    timeout=0.5
                 )
                 if report:
                     report_count[0] += 1
