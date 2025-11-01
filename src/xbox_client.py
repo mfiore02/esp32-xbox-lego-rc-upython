@@ -229,14 +229,16 @@ class XboxClient:
 
         Xbox Wireless Controller HID Report Format (via BLE):
         - Bytes 0-1:   Left stick X (uint16 little-endian, 0-65535)
-        - Bytes 2-3:   Left stick Y (uint16 little-endian, 0-65535)
+        - Bytes 2-3:   Left stick Y (uint16 little-endian, 0-65535, inverted: low=up)
         - Bytes 4-5:   Right stick X (uint16 little-endian, 0-65535)
-        - Bytes 6-7:   Right stick Y (uint16 little-endian, 0-65535)
+        - Bytes 6-7:   Right stick Y (uint16 little-endian, 0-65535, inverted: low=up)
         - Bytes 8-9:   Left trigger (uint16 little-endian, 0-1023)
         - Bytes 10-11: Right trigger (uint16 little-endian, 0-1023)
-        - Byte 12:     D-pad (bit pattern: 0b1=up, 0b11=up-right, 0b101=down, 0b111=down-right)
+        - Byte 12:     D-pad (8-direction: 0/15=center, 1=up, 2=up-right, 3=right,
+                       4=down-right, 5=down, 6=down-left, 7=left, 8=up-left)
         - Byte 13:     Buttons (A=0x01, B=0x02, X=0x08, Y=0x10, LB=0x40, RB=0x80)
-        - Byte 14:     More buttons (View=0x04, Menu=0x08, LS=0x20, RS=0x40)
+        - Byte 14:     More buttons (View=0x04, Menu=0x08, LS=0x20, RS=0x40, Share=0x01*)
+                       *Note: Share button detection may not work on all controller revisions
 
         Args:
             report: Raw HID report bytes (minimum 15 bytes)
@@ -251,17 +253,18 @@ class XboxClient:
         right_y_raw = int.from_bytes(report[6:8], 'little')
 
         # Map to -1.0 to 1.0 and apply dead zone
+        # Note: Y-axis is inverted (up = negative raw value, so we negate after mapping)
         self.state.left_stick_x = apply_dead_zone(
             map_range(left_x_raw, 0, 65535, -1.0, 1.0), self.dead_zone
         )
         self.state.left_stick_y = apply_dead_zone(
-            map_range(left_y_raw, 0, 65535, -1.0, 1.0), self.dead_zone
+            -map_range(left_y_raw, 0, 65535, -1.0, 1.0), self.dead_zone
         )
         self.state.right_stick_x = apply_dead_zone(
             map_range(right_x_raw, 0, 65535, -1.0, 1.0), self.dead_zone
         )
         self.state.right_stick_y = apply_dead_zone(
-            map_range(right_y_raw, 0, 65535, -1.0, 1.0), self.dead_zone
+            -map_range(right_y_raw, 0, 65535, -1.0, 1.0), self.dead_zone
         )
 
         # Parse triggers (0-1023 → 0.0 to 1.0)
@@ -272,12 +275,13 @@ class XboxClient:
         self.state.right_trigger = right_trigger_raw / 1023.0
 
         # Parse D-pad (byte 12)
-        # D-pad uses bit patterns: 1=up, 3=up-right, 5=down, 7=down-right, etc.
+        # D-pad uses standard 8-direction encoding:
+        # 0/15=center, 1=up, 2=up-right, 3=right, 4=down-right, 5=down, 6=down-left, 7=left, 8=up-left
         dpad = report[12]
-        self.state.dpad_up = (dpad == 0b1) or (dpad == 0b11)
-        self.state.dpad_down = (dpad == 0b101) or (dpad == 0b111)
-        self.state.dpad_left = (dpad == 0b1001) or (dpad == 0b1011)
-        self.state.dpad_right = (dpad == 0b11) or (dpad == 0b111)
+        self.state.dpad_up = dpad in (1, 2, 8)       # up, up-right, up-left
+        self.state.dpad_down = dpad in (4, 5, 6)     # down-right, down, down-left
+        self.state.dpad_left = dpad in (6, 7, 8)     # down-left, left, up-left
+        self.state.dpad_right = dpad in (2, 3, 4)    # up-right, right, down-right
 
         # Parse face buttons and bumpers (byte 13)
         buttons = report[13]
@@ -294,6 +298,8 @@ class XboxClient:
         self.state.button_menu = bool(more_buttons & 0x08)
         self.state.button_ls = bool(more_buttons & 0x20)  # Left stick click
         self.state.button_rs = bool(more_buttons & 0x40)  # Right stick click
+        # Note: Share button detection may not work on all controller revisions
+        # Some controllers don't report this button via BLE, or use different encoding
         self.state.button_share = bool(more_buttons & 0x01)  # Share button (if present)
 
         # Call callback if registered

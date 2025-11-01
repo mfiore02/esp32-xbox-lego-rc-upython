@@ -187,24 +187,25 @@ report = await report_characteristic.notified()
 
 **HID Report Format (15 bytes minimum):**
 - Bytes 0-1: Left stick X (uint16 LE, 0-65535 → -1.0 to 1.0)
-- Bytes 2-3: Left stick Y (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 2-3: Left stick Y (uint16 LE, 0-65535 → -1.0 to 1.0, inverted: low=up, mapped to +1.0)
 - Bytes 4-5: Right stick X (uint16 LE, 0-65535 → -1.0 to 1.0)
-- Bytes 6-7: Right stick Y (uint16 LE, 0-65535 → -1.0 to 1.0)
+- Bytes 6-7: Right stick Y (uint16 LE, 0-65535 → -1.0 to 1.0, inverted: low=up, mapped to +1.0)
 - Bytes 8-9: Left trigger (uint16 LE, 0-1023 → 0.0 to 1.0)
 - Bytes 10-11: Right trigger (uint16 LE, 0-1023 → 0.0 to 1.0)
-- Byte 12: D-pad (bit pattern)
+- Byte 12: D-pad (8-direction: 0/15=center, 1=up, 2=up-right, 3=right, 4=down-right, 5=down, 6=down-left, 7=left, 8=up-left)
 - Byte 13: Buttons (A=0x01, B=0x02, X=0x08, Y=0x10, LB=0x40, RB=0x80)
-- Byte 14: More buttons (View=0x04, Menu=0x08, LS=0x20, RS=0x40, Share=0x01)
+- Byte 14: More buttons (View=0x04, Menu=0x08, LS=0x20, RS=0x40, Share=0x01*)
+  - *Note: Share button may not be available on all controller revisions
 
 **Data Structure:**
 ```python
 class ControllerState:
-    left_stick_x: float      # -1.0 to 1.0
-    left_stick_y: float      # -1.0 to 1.0
-    right_stick_x: float     # -1.0 to 1.0
-    right_stick_y: float     # -1.0 to 1.0
-    left_trigger: float      # 0.0 to 1.0
-    right_trigger: float     # 0.0 to 1.0
+    left_stick_x: float      # -1.0 (left) to +1.0 (right)
+    left_stick_y: float      # -1.0 (down) to +1.0 (up)
+    right_stick_x: float     # -1.0 (left) to +1.0 (right)
+    right_stick_y: float     # -1.0 (down) to +1.0 (up)
+    left_trigger: float      # 0.0 (not pressed) to 1.0 (fully pressed)
+    right_trigger: float     # 0.0 (not pressed) to 1.0 (fully pressed)
     buttons: dict            # Button name -> bool
     dpad: dict               # Direction -> bool
 ```

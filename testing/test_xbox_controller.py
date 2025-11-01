@@ -309,6 +309,225 @@ async def test_continuous_input(client, duration=15):
         print(f"\n✗ Error: {e}")
 
 
+async def test_full_state_display(client, duration=30):
+    """
+    Display complete controller state in organized format.
+
+    This test shows ALL inputs in real-time:
+    - All buttons
+    - D-pad
+    - Analog sticks
+    - Triggers
+
+    Useful for verifying input mappings are correct.
+
+    Args:
+        client: Connected XboxClient instance
+        duration: How long to run the test in seconds
+
+    Returns:
+        True if test completes successfully, False otherwise
+    """
+    print("\n" + "=" * 60)
+    print(f"Full Controller State Display ({duration}s)")
+    print("=" * 60)
+    print("Press ALL buttons, move ALL sticks, and pull ALL triggers")
+    print("to verify mappings are correct.")
+    print()
+
+    # Validate client state
+    if not client.is_connected():
+        print("✗ Error: Client is not connected")
+        print("  Make sure the client is connected before calling this test")
+        return False
+
+    if client.report_characteristic is None:
+        print("✗ Error: Report characteristic is not initialized")
+        print("  Make sure the client was properly connected before calling this test")
+        return False
+
+    last_state_str = [""]
+
+    def format_bar(value, width=10, char="█"):
+        """Create a visual bar for analog values."""
+        if value >= 0:
+            filled = int(value * width)
+            return char * filled + "·" * (width - filled)
+        else:
+            filled = int(abs(value) * width)
+            return "·" * (width - filled) + char * filled
+
+    def format_state(state):
+        """Format complete controller state for display."""
+        lines = []
+        lines.append("┌" + "─" * 58 + "┐")
+        lines.append("│" + " " * 18 + "CONTROLLER STATE" + " " * 24 + "│")
+        lines.append("├" + "─" * 58 + "┤")
+
+        # Face Buttons
+        lines.append("│ FACE BUTTONS:                                           │")
+        a = "●" if state.button_a else "○"
+        b = "●" if state.button_b else "○"
+        x = "●" if state.button_x else "○"
+        y = "●" if state.button_y else "○"
+        lines.append(f"│   A:{a}  B:{b}  X:{x}  Y:{y}" + " " * 31 + "│")
+
+        # Shoulder Buttons
+        lines.append("│                                                          │")
+        lines.append("│ SHOULDER BUTTONS:                                        │")
+        lb = "●" if state.button_lb else "○"
+        rb = "●" if state.button_rb else "○"
+        lines.append(f"│   LB:{lb}  RB:{rb}" + " " * 39 + "│")
+
+        # Special Buttons
+        lines.append("│                                                          │")
+        lines.append("│ SPECIAL BUTTONS:                                         │")
+        view = "●" if state.button_view else "○"
+        menu = "●" if state.button_menu else "○"
+        share = "●" if state.button_share else "○"
+        lines.append(f"│   View:{view}  Menu:{menu}  Share:{share}" + " " * 23 + "│")
+
+        # Stick Clicks
+        lines.append("│                                                          │")
+        lines.append("│ STICK CLICKS:                                            │")
+        ls = "●" if state.button_ls else "○"
+        rs = "●" if state.button_rs else "○"
+        lines.append(f"│   LS:{ls}  RS:{rs}" + " " * 39 + "│")
+
+        # D-pad
+        lines.append("│                                                          │")
+        lines.append("│ D-PAD:                                                   │")
+        up = "▲" if state.dpad_up else "△"
+        down = "▼" if state.dpad_down else "▽"
+        left = "◀" if state.dpad_left else "◁"
+        right = "▶" if state.dpad_right else "▷"
+        lines.append(f"│   Up:{up}  Down:{down}  Left:{left}  Right:{right}" + " " * 19 + "│")
+
+        # Left Stick
+        lines.append("│                                                          │")
+        lines.append("│ LEFT STICK:                                              │")
+        lines.append(f"│   X: {state.left_stick_x:+.2f} [{format_bar(state.left_stick_x)}]" + " " * 13 + "│")
+        lines.append(f"│   Y: {state.left_stick_y:+.2f} [{format_bar(state.left_stick_y)}]" + " " * 13 + "│")
+
+        # Right Stick
+        lines.append("│                                                          │")
+        lines.append("│ RIGHT STICK:                                             │")
+        lines.append(f"│   X: {state.right_stick_x:+.2f} [{format_bar(state.right_stick_x)}]" + " " * 13 + "│")
+        lines.append(f"│   Y: {state.right_stick_y:+.2f} [{format_bar(state.right_stick_y)}]" + " " * 13 + "│")
+
+        # Triggers
+        lines.append("│                                                          │")
+        lines.append("│ TRIGGERS:                                                │")
+        lines.append(f"│   LT: {state.left_trigger:.2f} [{format_bar(state.left_trigger)}]" + " " * 14 + "│")
+        lines.append(f"│   RT: {state.right_trigger:.2f} [{format_bar(state.right_trigger)}]" + " " * 14 + "│")
+
+        lines.append("└" + "─" * 58 + "┘")
+
+        return "\n".join(lines)
+
+    def input_callback(state):
+        """Update display with new state."""
+        state_str = format_state(state)
+        if state_str != last_state_str[0]:
+            # Clear previous output (print new state)
+            print("\n" * 2)  # Some spacing
+            print(state_str)
+            last_state_str[0] = state_str
+
+    client.input_callback = input_callback
+
+    # Subscribe to notifications (if not already)
+    try:
+        await client.report_characteristic.subscribe(notify=True)
+    except:
+        pass  # Already subscribed
+
+    print("Waiting for input...")
+    print()
+
+    # Display initial state
+    input_callback(client.state)
+
+    # Read reports for the duration
+    try:
+        start_time = time.ticks_ms()
+        duration_ms = duration * 1000
+        report_count = [0]
+
+        while time.ticks_diff(time.ticks_ms(), start_time) < duration_ms:
+            try:
+                report = await asyncio.wait_for(
+                    client.report_characteristic.notified(),
+                    timeout=0.5
+                )
+                if report:
+                    report_count[0] += 1
+                    client.parse_hid_report(report)
+            except asyncio.TimeoutError:
+                pass
+
+        print(f"\n✓ Full state display complete ({report_count[0]} reports received)")
+        print("All input mappings can be verified from the display above.")
+        return True
+
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
+        import sys
+        sys.print_exception(e)
+        return False
+
+
+def full_state_test(duration=30):
+    """
+    Standalone full state display test - can be called directly from REPL.
+
+    This function handles scanning, connecting, and displaying the full controller
+    state for the specified duration.
+
+    Usage:
+        >>> import test_xbox_controller
+        >>> test_xbox_controller.full_state_test(duration=60)
+
+    Args:
+        duration: How long to display controller state in seconds
+
+    Returns:
+        The connected client (already disconnected at end) or None on failure
+    """
+    async def run_test():
+        print("=" * 60)
+        print(f"Full State Display Test ({duration}s)")
+        print("=" * 60)
+        print()
+
+        # Scan for controller
+        print("Scanning for Xbox controller...")
+        device = await scan_for_device("Xbox", timeout_ms=10000)
+
+        if not device:
+            print("✗ Xbox controller not found")
+            print("  Make sure controller is in pairing mode (hold Xbox + pairing button)")
+            return None
+
+        # Connect
+        client = XboxClient()
+        if not await client.connect(device):
+            print("✗ Failed to connect to controller")
+            return None
+
+        try:
+            # Run full state display test
+            await test_full_state_display(client, duration=duration)
+        finally:
+            # Disconnect
+            if client.is_connected():
+                await client.disconnect()
+
+        return client
+
+    return asyncio.run(run_test())
+
+
 async def run_all_tests():
     """Run all Xbox controller tests."""
     print("=" * 60)
@@ -373,7 +592,13 @@ def run():
 
 
 def quick_test():
-    """Quick test - just scan, connect, and show inputs for 10 seconds."""
+    """
+    Quick test - just scan, connect, and show inputs for 10 seconds.
+
+    Usage:
+        >>> import test_xbox_controller
+        >>> test_xbox_controller.quick_test()
+    """
     async def quick():
         device = await scan_for_device("Xbox", timeout_ms=10000)
         if device:
