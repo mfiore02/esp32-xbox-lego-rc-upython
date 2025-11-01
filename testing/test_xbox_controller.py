@@ -65,6 +65,10 @@ async def test_read_single_report(client):
     print("Press any button on the controller...")
 
     try:
+        # Subscribe to notifications first
+        await client.report_characteristic.subscribe(notify=True)
+        print("Subscribed to notifications, waiting for input...")
+
         # Try to read a single report with timeout
         report = await asyncio.wait_for(
             client.report_characteristic.notified(),
@@ -73,7 +77,8 @@ async def test_read_single_report(client):
 
         if report:
             print(f"✓ Received report: {len(report)} bytes")
-            print(f"Raw data: {' '.join(f'{b:02X}' for b in report)}")
+            hex_data = ' '.join(['{:02X}'.format(byte_val) for byte_val in report])
+            print(f"Raw data: {hex_data}")
             client.parse_hid_report(report)
             print(f"Parsed state: {client.state}")
         else:
@@ -171,20 +176,24 @@ async def test_analog_inputs(client):
 
     client.input_callback = input_callback
 
-    # Start input loop as background task
-    input_task = asyncio.create_task(client.start_input_loop())
-
+    # Read reports directly for 10 seconds (don't start a new input loop)
     try:
-        await asyncio.sleep(10)
+        for _ in range(10):
+            try:
+                report = await asyncio.wait_for(
+                    client.report_characteristic.notified(),
+                    timeout=1.0
+                )
+                if report:
+                    input_count[0] += 1
+                    client.parse_hid_report(report)
+            except asyncio.TimeoutError:
+                print(".", end="")
+
         print(f"\n✓ Received {input_count[0]} input updates")
 
-    finally:
-        # Cancel input task
-        input_task.cancel()
-        try:
-            await input_task
-        except asyncio.CancelledError:
-            pass
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
 
 
 async def test_dpad(client):
@@ -217,20 +226,23 @@ async def test_dpad(client):
 
     client.input_callback = input_callback
 
-    # Start input loop as background task
-    input_task = asyncio.create_task(client.start_input_loop())
-
+    # Read reports directly for 10 seconds
     try:
-        await asyncio.sleep(10)
+        for _ in range(10):
+            try:
+                report = await asyncio.wait_for(
+                    client.report_characteristic.notified(),
+                    timeout=1.0
+                )
+                if report:
+                    client.parse_hid_report(report)
+            except asyncio.TimeoutError:
+                print(".", end="")
+
         print(f"\n✓ D-pad presses: {dpad_presses}")
 
-    finally:
-        # Cancel input task
-        input_task.cancel()
-        try:
-            await input_task
-        except asyncio.CancelledError:
-            pass
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
 
 
 async def test_continuous_input(client, duration=15):
@@ -239,6 +251,8 @@ async def test_continuous_input(client, duration=15):
     print("Use the controller normally and watch the output")
     print("Format: Sticks | Triggers | Buttons")
     print()
+
+    report_count = [0]
 
     def input_callback(state):
         # Format compact display
@@ -265,20 +279,24 @@ async def test_continuous_input(client, duration=15):
 
     client.input_callback = input_callback
 
-    # Start input loop as background task
-    input_task = asyncio.create_task(client.start_input_loop())
-
+    # Read reports directly for the duration
     try:
-        await asyncio.sleep(duration)
-        print("\n✓ Continuous input test complete")
+        for _ in range(duration):
+            try:
+                report = await asyncio.wait_for(
+                    client.report_characteristic.notified(),
+                    timeout=1.0
+                )
+                if report:
+                    report_count[0] += 1
+                    client.parse_hid_report(report)
+            except asyncio.TimeoutError:
+                print(".", end="")
 
-    finally:
-        # Cancel input task
-        input_task.cancel()
-        try:
-            await input_task
-        except asyncio.CancelledError:
-            pass
+        print(f"\n✓ Continuous input test complete ({report_count[0]} reports)")
+
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
 
 
 async def run_all_tests():

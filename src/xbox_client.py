@@ -19,6 +19,7 @@ from utils.math_utils import apply_dead_zone, clamp, map_range
 # Standard BLE HID UUIDs for Xbox Controller
 HID_SERVICE_UUID = bluetooth.UUID(0x1812)  # Human Interface Device
 HID_REPORT_CHAR_UUID = bluetooth.UUID(0x2A4D)  # HID Input Report
+HID_REPORT_MAP_UUID = bluetooth.UUID(0x2A4B)  # HID Report Map
 
 # Xbox controller device name
 XBOX_DEVICE_NAME = "Xbox Wireless Controller"
@@ -182,6 +183,19 @@ class XboxClient:
                 print("Warning: Controller may not send input data without pairing")
                 # Don't fail here - try to continue anyway
 
+            # CRITICAL: Read the Report Map characteristic
+            # This is required to initialize the controller and enable HID notifications!
+            # Without this, the controller won't send any input data.
+            try:
+                print("Reading HID Report Map (required for initialization)...")
+                report_map_char = await self.hid_service.characteristic(HID_REPORT_MAP_UUID)
+                report_map = await report_map_char.read()
+                print(f"Report Map read: {len(report_map)} bytes")
+            except Exception as e:
+                print(f"Warning: Could not read Report Map: {e}")
+                print("Controller may not send input data without this!")
+                # Continue anyway, but it probably won't work
+
             self.connected = True
             print("Xbox controller connected successfully!")
             return True
@@ -316,7 +330,12 @@ class XboxClient:
             print("Starting input loop...")
 
             # Subscribe to notifications from the HID report characteristic
-            # This will receive controller input data
+            # This enables the controller to send input data to us
+            print("Subscribing to HID notifications...")
+            await self.report_characteristic.subscribe(notify=True)
+            print("Subscribed! Waiting for input data...")
+
+            # Now read reports as they come in
             while self.is_connected():
                 try:
                     # Read the report (this blocks until data is available)
