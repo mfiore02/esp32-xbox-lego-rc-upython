@@ -107,6 +107,12 @@ class LegoClient:
 
             self.connected = True
             print("LEGO hub connected successfully!")
+
+            print("Calibrating steering...")
+            if not await self.calibrate_steering():
+                print("LEGO hub calibration failed! Cannot continue.")
+                await self.disconnect()
+                return False
             return True
 
         except Exception as e:

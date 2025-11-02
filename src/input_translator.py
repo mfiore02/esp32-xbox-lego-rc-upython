@@ -275,7 +275,7 @@ class InputTranslator:
         steer_scaled = steer_curved
 
         cmd.motor_a_speed = self._scale_to_motor_speed(drive_scaled, effective_max_speed)
-        cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled, effective_max_speed)
+        cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled, 100)  # Steering not limited by speed limit
 
         # Update LED state
         cmd.led_color = self._update_led_state(state)

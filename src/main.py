@@ -17,7 +17,7 @@ Or deploy and run automatically on boot.
 import time
 import asyncio
 from src.ble_manager import BLEManager
-from src.input_translator import InputTranslator, ControlMode
+from src.input_translator import InputTranslator, ControlMode, VehicleCommand
 from src.utils.bonding_utils import clear_bonding_data
 from src.utils.constants import LEGO_COLORS
 
@@ -37,6 +37,7 @@ class RCCarController:
         self.ble_manager = BLEManager(dead_zone=dead_zone)
         self.translator = InputTranslator()
         self.running = False
+        self.cmd = VehicleCommand()
         self.connection_check_interval_ms = 5000  # Check connections every 5 seconds
         self.last_connection_check = 0
 
@@ -153,12 +154,21 @@ class RCCarController:
         xbox_client = self.ble_manager.get_xbox_client()
         lego_client = self.ble_manager.get_lego_client()
 
-        # Track previous command to avoid spamming identical commands
-        prev_motor_a = None
-        prev_motor_b = None
-        prev_led = None
+        def xbox_input_callback(state):
+            """Callback for Xbox input updates."""
+            #print(xbox_client.format_state_compact(state))
+            self.cmd = self.translator.translate(state)
+            print(f"power: {self.cmd.motor_a_speed:+.2f}, steering: {self.cmd.motor_b_speed:+.2f}")
 
-        loop_count = 0
+        # Calibrate LEGO hub
+        print("Calibrating LEGO hub...")
+        if not await lego_client.calibrate_steering():
+            print("LEGO hub calibration failed! Cannot continue.")
+            self.running = False
+
+        # Start Xbox input notification loop
+        print("Listening for Xbox controller input...")
+        xbox_task = asyncio.create_task(xbox_client.start_input_loop(xbox_input_callback))
 
         try:
             while self.running:
@@ -166,51 +176,13 @@ class RCCarController:
                 if not await self.check_connections():
                     print("Connection check failed - stopping")
                     break
+                
+                if self.cmd.emergency_stop:
+                    await lego_client.drive(0, 0, lego_client.LIGHTS_OFF_OFF)
+                else:
+                    await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.led_color)
 
-                # Read Xbox controller input (with timeout)
-                try:
-                    report = await asyncio.wait_for_ms(
-                        xbox_client.report_characteristic.notified(),
-                        500  # 500ms timeout
-                    )
-
-                    if report:
-                        # Parse controller input
-                        xbox_client.parse_hid_report(report)
-
-                        # Translate to vehicle command
-                        cmd = self.translator.translate(xbox_client.state)
-
-                        # Handle emergency stop
-                        if cmd.emergency_stop:
-                            print("\n🛑 EMERGENCY STOP ACTIVATED")
-                            await lego_client.drive(0, 0, lego_client.LIGHTS_ON_ON)
-                            prev_motor_a = 0
-                            prev_motor_b = 0
-                            prev_led = LEGO_COLORS.RED
-                            print("Motors stopped. Press X again to resume.\n")
-                            continue
-
-                        # Send motor commands (only if changed)
-                        if cmd.motor_a_speed != prev_motor_a or cmd.motor_b_speed != prev_motor_b or cmd.led_color != prev_led:
-                            await lego_client.drive(speed=cmd.motor_a_speed, angle=cmd.motor_b_speed, lights=cmd.led_color)
-                            prev_motor_a = cmd.motor_a_speed
-                            prev_motor_b = cmd.motor_b_speed
-                            prev_led = cmd.led_color
-
-                        # Periodic status display (every 50 loops = ~5 seconds at 10Hz)
-                        loop_count += 1
-                        if loop_count % 50 == 0:
-                            status = self.translator.get_status()
-                            print(f"Status: Mode={status['mode']}, "
-                                  f"Limit={status['max_speed_limit']}%, "
-                                  f"Lights={'H' if status['headlights'] else '-'}"
-                                  f"{'T' if status['taillights'] else '-'}")
-
-                except asyncio.TimeoutError:
-                    # No input received (controller idle) - this is normal
-                    pass
-
+                await asyncio.sleep_ms(50)  # Give some time to other tasks
         except KeyboardInterrupt:
             print("\n\nStopping (Ctrl+C pressed)...")
         except Exception as e:
