@@ -1,0 +1,6 @@
+### TODO ###
+* Lights:
+    * Remove color stuff - doesn't seem to work and don't plan to use it anyway
+    * Light control may be inverted
+* Motors:
+    * Car doesn't respond to stick inputs - likely a bug in main or translator since lego_client test is successful
