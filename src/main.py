@@ -185,7 +185,6 @@ class RCCarController:
                         if cmd.emergency_stop:
                             print("\n🛑 EMERGENCY STOP ACTIVATED")
                             await lego_client.drive(0, 0, lego_client.LIGHTS_ON_ON)
-                            await lego_client.set_led_color(LEGO_COLORS.RED)
                             prev_motor_a = 0
                             prev_motor_b = 0
                             prev_led = LEGO_COLORS.RED

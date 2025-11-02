@@ -4,3 +4,6 @@
     * Light control may be inverted
 * Motors:
     * Car doesn't respond to stick inputs - likely a bug in main or translator since lego_client test is successful
+* Deploy:
+    * Don't bail if dirs exist
+    * Replace existing files with same name

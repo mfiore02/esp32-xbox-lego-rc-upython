@@ -346,93 +346,12 @@ async def test_full_state_display(client, duration=30):
         print("  Make sure the client was properly connected before calling this test")
         return False
 
-    last_state_str = [""]
-
-    def format_bar(value, width=10, char="█"):
-        """Create a visual bar for analog values."""
-        if value >= 0:
-            filled = int(value * width)
-            return char * filled + "·" * (width - filled)
-        else:
-            filled = int(abs(value) * width)
-            return "·" * (width - filled) + char * filled
-
-    def format_state(state):
-        """Format complete controller state for display."""
-        lines = []
-        lines.append("┌" + "─" * 58 + "┐")
-        lines.append("│" + " " * 18 + "CONTROLLER STATE" + " " * 24 + "│")
-        lines.append("├" + "─" * 58 + "┤")
-
-        # Face Buttons
-        lines.append("│ FACE BUTTONS:                                           │")
-        a = "●" if state.button_a else "○"
-        b = "●" if state.button_b else "○"
-        x = "●" if state.button_x else "○"
-        y = "●" if state.button_y else "○"
-        lines.append(f"│   A:{a}  B:{b}  X:{x}  Y:{y}" + " " * 31 + "│")
-
-        # Shoulder Buttons
-        lines.append("│                                                          │")
-        lines.append("│ SHOULDER BUTTONS:                                        │")
-        lb = "●" if state.button_lb else "○"
-        rb = "●" if state.button_rb else "○"
-        lines.append(f"│   LB:{lb}  RB:{rb}" + " " * 39 + "│")
-
-        # Special Buttons
-        lines.append("│                                                          │")
-        lines.append("│ SPECIAL BUTTONS:                                         │")
-        view = "●" if state.button_view else "○"
-        menu = "●" if state.button_menu else "○"
-        share = "●" if state.button_share else "○"
-        lines.append(f"│   View:{view}  Menu:{menu}  Share:{share}" + " " * 23 + "│")
-
-        # Stick Clicks
-        lines.append("│                                                          │")
-        lines.append("│ STICK CLICKS:                                            │")
-        ls = "●" if state.button_ls else "○"
-        rs = "●" if state.button_rs else "○"
-        lines.append(f"│   LS:{ls}  RS:{rs}" + " " * 39 + "│")
-
-        # D-pad
-        lines.append("│                                                          │")
-        lines.append("│ D-PAD:                                                   │")
-        up = "▲" if state.dpad_up else "△"
-        down = "▼" if state.dpad_down else "▽"
-        left = "◀" if state.dpad_left else "◁"
-        right = "▶" if state.dpad_right else "▷"
-        lines.append(f"│   Up:{up}  Down:{down}  Left:{left}  Right:{right}" + " " * 19 + "│")
-
-        # Left Stick
-        lines.append("│                                                          │")
-        lines.append("│ LEFT STICK:                                              │")
-        lines.append(f"│   X: {state.left_stick_x:+.2f} [{format_bar(state.left_stick_x)}]" + " " * 13 + "│")
-        lines.append(f"│   Y: {state.left_stick_y:+.2f} [{format_bar(state.left_stick_y)}]" + " " * 13 + "│")
-
-        # Right Stick
-        lines.append("│                                                          │")
-        lines.append("│ RIGHT STICK:                                             │")
-        lines.append(f"│   X: {state.right_stick_x:+.2f} [{format_bar(state.right_stick_x)}]" + " " * 13 + "│")
-        lines.append(f"│   Y: {state.right_stick_y:+.2f} [{format_bar(state.right_stick_y)}]" + " " * 13 + "│")
-
-        # Triggers
-        lines.append("│                                                          │")
-        lines.append("│ TRIGGERS:                                                │")
-        lines.append(f"│   LT: {state.left_trigger:.2f} [{format_bar(state.left_trigger)}]" + " " * 14 + "│")
-        lines.append(f"│   RT: {state.right_trigger:.2f} [{format_bar(state.right_trigger)}]" + " " * 14 + "│")
-
-        lines.append("└" + "─" * 58 + "┘")
-
-        return "\n".join(lines)
-
     def input_callback(state):
         """Update display with new state."""
-        state_str = format_state(state)
-        if state_str != last_state_str[0]:
-            # Clear previous output (print new state)
-            print("\n" * 2)  # Some spacing
-            print(state_str)
-            last_state_str[0] = state_str
+        state_str = client.format_state_compact(state)
+        # Clear previous output (print new state)
+        print("\n")  # Some spacing
+        print(state_str)
 
     client.input_callback = input_callback
 

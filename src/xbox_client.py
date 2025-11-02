@@ -368,6 +368,119 @@ class XboxClient:
             Current ControllerState object
         """
         return self.state
+    
+    def format_bar(self, value, width=10, char="█"):
+        """Create a visual bar for analog values."""
+        if value >= 0:
+            filled = int(value * width)
+            return char * filled + "·" * (width - filled)
+        else:
+            filled = int(abs(value) * width)
+            return "·" * (width - filled) + char * filled
+    
+    def format_state_compact(self, state):
+        """Format complete controller state for display in as few lines as possible."""
+        lines = []
+
+        # Buttons
+        a = "●" if state.button_a else "○"
+        b = "●" if state.button_b else "○"
+        x = "●" if state.button_x else "○"
+        y = "●" if state.button_y else "○"
+        lb = "●" if state.button_lb else "○"
+        rb = "●" if state.button_rb else "○"
+        lines.append(f"A:{a} B:{b} X:{x} Y:{y} LB:{lb} RB:{rb}")
+
+        # Sticks/Triggers
+        ls = "●" if state.button_ls else "○"
+        lsx = f"{state.left_stick_x:+.2f}"
+        lsy = f"{state.left_stick_y:+.2f}"
+        rs = "●" if state.button_rs else "○"
+        rsx = f"{state.right_stick_x:+.2f}"
+        rsy = f"{state.right_stick_y:+.2f}"
+        lt = f"{state.left_trigger:.2f}"
+        rt = f"{state.right_trigger:.2f}"
+        lines.append(f"LS: {ls} X/Y {lsx}/{lsy} | RS: {rs} X/Y {rsx}/{rsy} | LT: {lt} | RT: {rt}")
+
+        # D-pad/Special Buttons
+        up = "▲" if state.dpad_up else "△"
+        down = "▼" if state.dpad_down else "▽"
+        left = "◀" if state.dpad_left else "◁"
+        right = "▶" if state.dpad_right else "▷"
+        view = "●" if state.button_view else "○"
+        menu = "●" if state.button_menu else "○"
+        share = "●" if state.button_share else "○"
+        lines.append(f"D-PAD: {up} {down} {left} {right} | View:{view} Menu:{menu} Share:{share}")
+
+        return "\n".join(lines)
+    
+    def format_state(self, state):
+        """Format complete controller state for display."""
+        lines = []
+        lines.append("┌" + "─" * 58 + "┐")
+        lines.append("│" + " " * 18 + "CONTROLLER STATE" + " " * 24 + "│")
+        lines.append("├" + "─" * 58 + "┤")
+
+        # Face Buttons
+        lines.append("│ FACE BUTTONS:                                           │")
+        a = "●" if state.button_a else "○"
+        b = "●" if state.button_b else "○"
+        x = "●" if state.button_x else "○"
+        y = "●" if state.button_y else "○"
+        lines.append(f"│   A:{a}  B:{b}  X:{x}  Y:{y}" + " " * 31 + "│")
+
+        # Shoulder Buttons
+        lines.append("│                                                          │")
+        lines.append("│ SHOULDER BUTTONS:                                        │")
+        lb = "●" if state.button_lb else "○"
+        rb = "●" if state.button_rb else "○"
+        lines.append(f"│   LB:{lb}  RB:{rb}" + " " * 39 + "│")
+
+        # Special Buttons
+        lines.append("│                                                          │")
+        lines.append("│ SPECIAL BUTTONS:                                         │")
+        view = "●" if state.button_view else "○"
+        menu = "●" if state.button_menu else "○"
+        share = "●" if state.button_share else "○"
+        lines.append(f"│   View:{view}  Menu:{menu}  Share:{share}" + " " * 23 + "│")
+
+        # Stick Clicks
+        lines.append("│                                                          │")
+        lines.append("│ STICK CLICKS:                                            │")
+        ls = "●" if state.button_ls else "○"
+        rs = "●" if state.button_rs else "○"
+        lines.append(f"│   LS:{ls}  RS:{rs}" + " " * 39 + "│")
+
+        # D-pad
+        lines.append("│                                                          │")
+        lines.append("│ D-PAD:                                                   │")
+        up = "▲" if state.dpad_up else "△"
+        down = "▼" if state.dpad_down else "▽"
+        left = "◀" if state.dpad_left else "◁"
+        right = "▶" if state.dpad_right else "▷"
+        lines.append(f"│   Up:{up}  Down:{down}  Left:{left}  Right:{right}" + " " * 19 + "│")
+
+        # Left Stick
+        lines.append("│                                                          │")
+        lines.append("│ LEFT STICK:                                              │")
+        lines.append(f"│   X: {state.left_stick_x:+.2f} [{self.format_bar(state.left_stick_x)}]" + " " * 13 + "│")
+        lines.append(f"│   Y: {state.left_stick_y:+.2f} [{self.format_bar(state.left_stick_y)}]" + " " * 13 + "│")
+
+        # Right Stick
+        lines.append("│                                                          │")
+        lines.append("│ RIGHT STICK:                                             │")
+        lines.append(f"│   X: {state.right_stick_x:+.2f} [{self.format_bar(state.right_stick_x)}]" + " " * 13 + "│")
+        lines.append(f"│   Y: {state.right_stick_y:+.2f} [{self.format_bar(state.right_stick_y)}]" + " " * 13 + "│")
+
+        # Triggers
+        lines.append("│                                                          │")
+        lines.append("│ TRIGGERS:                                                │")
+        lines.append(f"│   LT: {state.left_trigger:.2f} [{self.format_bar(state.left_trigger)}]" + " " * 14 + "│")
+        lines.append(f"│   RT: {state.right_trigger:.2f} [{self.format_bar(state.right_trigger)}]" + " " * 14 + "│")
+
+        lines.append("└" + "─" * 58 + "┘")
+
+        return "\n".join(lines)
 
     def get_connection_info(self) -> dict:
         """
