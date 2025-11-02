@@ -26,26 +26,24 @@ libs = [
     "aioble",
 ]
 
-utils = [
+utility_files = [
     "src/utils/__init__.py",
     "src/utils/ble_utils.py",
-    "src/bonding_utils.py",
+    "src/utils/bonding_utils.py",
     "src/utils/constants.py",
     "src/utils/math_utils.py",
 ]
 
-sources = [
+primary_files = [
+    "boot.py",
     "src/ble_manager.py",
     "src/input_translator.py",
     "src/lego_client.py",
     "src/main.py",
     "src/xbox_client.py",
-    "boot.py",
 ]
 
-
-
-tests = [
+test_files = [
     "testing/ble_scan.py",
     "testing/test_ble_manager.py",
     "testing/test_input_translator.py",
@@ -53,8 +51,21 @@ tests = [
     "testing/test_xbox_controller.py",
 ]
 
+dirs_to_create = [
+    "testing",
+    "lib",
+    "src",
+    "src/utils",
+]
 
-def run_mpremote(args, verbose=True):
+dirs_to_remove = [
+    "testing",
+    "lib",
+    "src",
+]
+
+
+def run_mpremote(args, verbose=False):
     """Run mpremote command."""
     cmd = ["mpremote"] + args
     if verbose:
@@ -93,19 +104,16 @@ def deploy_utils(port_arg):
     """Deploy utility modules."""
     print("\n=== Deploying utility modules ===")
 
-    # Create directories
-    run_mpremote(port_arg + ["mkdir", ":src"])
-    run_mpremote(port_arg + ["mkdir", ":src/utils"])
-
     # Upload files
     root = get_project_root()
-    for file in utils:
+    for file in utility_files:
         src = root / file
         dst = f":{file}"
         if not src.exists():
             print(f"Warning: {file} not found, skipping")
             continue
 
+        print(f"Uploading utility module {file}...")
         if not run_mpremote(port_arg + ["cp", str(src), dst]):
             print(f"Failed to upload {file}")
             return False
@@ -114,23 +122,24 @@ def deploy_utils(port_arg):
     return True
 
 
-def deploy_clients(port_arg):
-    """Deploy client modules."""
-    print("\n=== Deploying client modules ===")
+def deploy_primary(port_arg):
+    """Deploy primary modules."""
+    print("\n=== Deploying primary modules ===")
 
     root = get_project_root()
-    for file in sources:
+    for file in primary_files:
         src = root / file
         dst = f":{file}"
         if not src.exists():
             print(f"Warning: {file} not found, skipping")
             continue
 
+        print(f"Uploading primary module {file}...")
         if not run_mpremote(port_arg + ["cp", str(src), dst]):
             print(f"Failed to upload {file}")
             return False
 
-    print("✓ Client modules deployed")
+    print("✓ Primary modules deployed")
     return True
 
 
@@ -139,13 +148,14 @@ def deploy_tests(port_arg):
     print("\n=== Deploying test scripts ===")
 
     root = get_project_root()
-    for file in tests:
+    for file in test_files:
         src = root / file
-        dst = f":{Path(file).name}"
+        dst = f":{file}"
         if not src.exists():
             print(f"Warning: {file} not found, skipping")
             continue
 
+        print(f"Uploading test script {file}...")
         if not run_mpremote(port_arg + ["cp", str(src), dst]):
             print(f"Failed to upload {file}")
             return False
@@ -179,9 +189,24 @@ def clean_device(port_arg):
         print("Cancelled")
         return True
 
+    # Remove test files
+    for t in test_files:
+        print(f"Removing test file {t}...")
+        run_mpremote(port_arg + ["rm", t], verbose=False)
+
+    # Remove primary files
+    for p in primary_files:
+        print(f"Removing primary file {p}...")
+        run_mpremote(port_arg + ["rm", p], verbose=False)
+
+    # Remove utility files
+    for u in utility_files:
+        print(f"Removing utility file {u}...")
+        run_mpremote(port_arg + ["rm", u], verbose=False)
+
     # Remove common directories
-    dirs_to_remove = [":src", ":testing"]
     for d in dirs_to_remove:
+        print(f"Removing directory {d}...")
         run_mpremote(port_arg + ["rm", "-rf", d], verbose=False)
 
     print("✓ Device cleaned")
@@ -204,19 +229,19 @@ def main():
         default=None
     )
     parser.add_argument(
-        "--test",
+        "--libs",
         action="store_true",
-        help=f"Also deploy test scripts: {" ".join([test for test in tests])}"
+        help=f"Also deploy test scripts: {" ".join([l for l in libs])}"
+    )
+    parser.add_argument(
+        "--tests",
+        action="store_true",
+        help=f"Also deploy test scripts: {" ".join([t for t in test_files])}"
     )
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="Clean device before deploying"
-    )
-    parser.add_argument(
-        "--libs",
-        action="store_true",
-        help=f"Install required libraries: {" ".join([lib for lib in libs])}",
+        help="Clean device and exit"
     )
     parser.add_argument(
         "--list",
@@ -246,8 +271,16 @@ def main():
 
     # Clean if requested
     if args.clean:
-        if not clean_device(port_arg):
+        clean_device(port_arg)
+        sys.exit(0)
+
+    # Create directories
+    for d in dirs_to_create:
+        print(f"Creating directory {d}...")
+        if not run_mpremote(port_arg + ["mkdir", f":{d}"]):
+            print("\n✗ Directory creation failed")
             sys.exit(1)
+    print("✓ Directories created")
 
     # Install libraries if requested
     if args.libs:
@@ -258,18 +291,22 @@ def main():
     # Deploy code
     success = True
 
-    # Deploy utilities
-    if not deploy_utils(port_arg):
-        success = False
-
-    # Deploy clients
-    if success and not deploy_clients(port_arg):
-        success = False
-
     # Deploy tests if requested
-    if success and args.test:
+    if args.tests:
         if not deploy_tests(port_arg):
             success = False
+
+    # Install libraries
+    if success and not install_libraries(port_arg):
+        success = False
+
+    # Deploy src
+    if success and not deploy_primary(port_arg):
+        success = False
+
+    # Deploy utilities
+    if success and not deploy_utils(port_arg):
+        success = False
 
     # Summary
     print("\n" + "=" * 60)
@@ -277,7 +314,7 @@ def main():
         print("✓ Deployment successful!")
         print("\nNext steps:")
         print("1. Connect to device REPL: mpremote")
-        if args.test:
+        if args.tests:
             print("2. Run tests:")
             print("   >>> import test_lego_hub")
             print("   >>> test_lego_hub.run()")
