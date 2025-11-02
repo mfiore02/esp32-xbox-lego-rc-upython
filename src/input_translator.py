@@ -164,7 +164,7 @@ class InputTranslator:
         Returns:
             Motor speed (-100 to 100)
         """
-        speed = int(value * max_speed)
+        speed = round(value * max_speed)
         return max(-100, min(100, speed))
 
     def _handle_button_press(self, current: bool, previous: bool) -> bool:
@@ -271,11 +271,11 @@ class InputTranslator:
         speed_multiplier = brake_multiplier * boost_multiplier
 
         # Calculate final motor speeds
-        drive_scaled = drive_curved * effective_max_speed * speed_multiplier
-        steer_scaled = steer_curved * effective_max_speed
+        drive_scaled = drive_curved * speed_multiplier
+        steer_scaled = steer_curved
 
-        cmd.motor_a_speed = self._scale_to_motor_speed(drive_scaled / 100.0, 100)
-        cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled / 100.0, 100)
+        cmd.motor_a_speed = self._scale_to_motor_speed(drive_scaled, effective_max_speed)
+        cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled, effective_max_speed)
 
         # Update LED state
         cmd.led_color = self._update_led_state(state)

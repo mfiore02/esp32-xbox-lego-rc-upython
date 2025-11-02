@@ -318,14 +318,15 @@ def test_led_control():
     assert translator.taillights_on
 
     # Test both lights on (should be yellow)
-    state.button_b = False  # Release B
-    state.button_a = True   # Press A (headlights back on)
-    cmd = translator.translate(state)
-    state.button_a = False
-    state.button_b = True   # Press B (both on now)
-    cmd = translator.translate(state)
+    # Taillights are currently ON from previous test
+    state.button_b = False  # Release B (taillights stay ON)
+    translator.translate(state)  # Update button state
+    state.button_a = True   # Press A to toggle headlights ON
+    cmd = translator.translate(state)  # Now both should be ON
     print(f"With both lights ON: {cmd.led_color}")
     assert cmd.led_color == LEGO_COLORS.YELLOW
+    assert translator.headlights_on
+    assert translator.taillights_on
 
     print("✓ PASSED: LED control works correctly")
     return True
