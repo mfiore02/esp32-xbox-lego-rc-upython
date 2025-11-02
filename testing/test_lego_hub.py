@@ -259,8 +259,6 @@ async def run_all_tests():
 
     except Exception as e:
         print(f"\n✗ Test failed with error: {e}")
-        import sys
-        sys.print_exception(e)
 
     finally:
         # Always disconnect
