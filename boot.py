@@ -12,14 +12,19 @@ For production:
 """
 
 import time
+import sys
+
+sys.path.append("src")
+sys.path.append("src/utils")
+sys.path.append("testing")
+
+# Small delay to allow serial connection
+time.sleep(2)
 
 print("\n" + "="*60)
 print(" " * 10 + "ESP32 RC CAR CONTROLLER - BOOT")
 print("="*60)
 print()
-
-# Small delay to allow serial connection
-time.sleep(2)
 
 # =============================================================================
 # AUTO-START CONFIGURATION
