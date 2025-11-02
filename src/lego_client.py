@@ -339,6 +339,18 @@ class LegoClient:
 
         return await self.send_command(command)
 
+    async def set_led_color(self, color_id: int):
+        """
+        Alias for change_led_color() for consistency with main.py API.
+
+        Args:
+            color_id: Color ID (0-10, use LEGO_COLORS constants)
+
+        Returns:
+            True if command sent successfully
+        """
+        return await self.change_led_color(color_id)
+
     def get_connection_info(self) -> dict:
         """
         Get information about the current connection.

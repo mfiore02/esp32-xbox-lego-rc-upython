@@ -79,11 +79,11 @@ class RCCarController:
             lego_device=devices['lego']
         )
 
-        if not connections.get('xbox'):
+        if not connections.get('xbox_connected'):
             print("✗ Failed to connect to Xbox controller")
             return False
 
-        if not connections.get('lego'):
+        if not connections.get('lego_connected'):
             print("✗ Failed to connect to LEGO hub")
             return False
 
@@ -184,8 +184,7 @@ class RCCarController:
                         # Handle emergency stop
                         if cmd.emergency_stop:
                             print("\n🛑 EMERGENCY STOP ACTIVATED")
-                            await lego_client.set_motor_speed(port='A', speed=0)
-                            await lego_client.set_motor_speed(port='B', speed=0)
+                            await lego_client.drive(0, 0, lego_client.LIGHTS_ON_ON)
                             await lego_client.set_led_color(LEGO_COLORS.RED)
                             prev_motor_a = 0
                             prev_motor_b = 0
@@ -194,17 +193,10 @@ class RCCarController:
                             continue
 
                         # Send motor commands (only if changed)
-                        if cmd.motor_a_speed != prev_motor_a:
-                            await lego_client.set_motor_speed(port='A', speed=cmd.motor_a_speed)
+                        if cmd.motor_a_speed != prev_motor_a or cmd.motor_b_speed != prev_motor_b or cmd.led_color != prev_led:
+                            await lego_client.drive(speed=cmd.motor_a_speed, angle=cmd.motor_b_speed, lights=cmd.led_color)
                             prev_motor_a = cmd.motor_a_speed
-
-                        if cmd.motor_b_speed != prev_motor_b:
-                            await lego_client.set_motor_speed(port='B', speed=cmd.motor_b_speed)
                             prev_motor_b = cmd.motor_b_speed
-
-                        # Send LED command (only if changed)
-                        if cmd.led_color != prev_led:
-                            await lego_client.set_led_color(cmd.led_color)
                             prev_led = cmd.led_color
 
                         # Periodic status display (every 50 loops = ~5 seconds at 10Hz)
@@ -224,8 +216,6 @@ class RCCarController:
             print("\n\nStopping (Ctrl+C pressed)...")
         except Exception as e:
             print(f"\n✗ Error in control loop: {e}")
-            import sys
-            sys.print_exception(e)
         finally:
             self.running = False
             await self.shutdown()
@@ -237,14 +227,9 @@ class RCCarController:
         try:
             lego_client = self.ble_manager.get_lego_client()
 
-            # Stop all motors
-            print("Stopping motors...")
-            await lego_client.set_motor_speed(port='A', speed=0)
-            await lego_client.set_motor_speed(port='B', speed=0)
-
-            # Turn off LEDs
-            print("Turning off LEDs...")
-            await lego_client.set_led_color(LEGO_COLORS.BLACK)
+            # Stop all motors and turn off LEDs
+            print("Stopping motors and turning off LEDs...")
+            await lego_client.drive(0, 0, lego_client.LIGHTS_OFF_OFF)
 
         except Exception as e:
             print(f"Error during motor/LED shutdown: {e}")

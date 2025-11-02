@@ -25,6 +25,21 @@ LIGHTS_OFF = 0x00
 LIGHTS_ON = 0x01
 LIGHTS_BOTH_ON = 0x02
 
+# LEGO Hub LED Colors
+class LEGO_COLORS:
+    """Standard LEGO color palette for hub LED."""
+    BLACK = 0      # Off
+    PINK = 1
+    PURPLE = 2
+    BLUE = 3
+    LIGHT_BLUE = 4
+    CYAN = 5
+    GREEN = 6
+    YELLOW = 7
+    ORANGE = 8
+    RED = 9
+    WHITE = 10
+
 # Xbox Controller BLE UUIDs (to be determined during implementation)
 # These will need to be discovered by analyzing the controller
 XBOX_SERVICE_UUID = None  # TBD
