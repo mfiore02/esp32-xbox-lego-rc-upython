@@ -128,11 +128,11 @@ class RCCarController:
 
             health = await self.ble_manager.check_connections()
 
-            if not health.get('xbox'):
+            if not health.get('xbox_ok'):
                 print("⚠ Xbox controller connection lost!")
                 return False
 
-            if not health.get('lego'):
+            if not health.get('lego_ok'):
                 print("⚠ LEGO hub connection lost!")
                 return False
 
