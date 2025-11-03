@@ -27,7 +27,7 @@ Control Modes:
 """
 
 from src.xbox_client import ControllerState
-from src.utils.constants import LEGO_COLORS
+from src.utils.constants import LIGHTS_OFF, LIGHTS_ON, LIGHTS_BRAKE
 
 
 class ControlMode:
@@ -44,19 +44,20 @@ class VehicleCommand:
     Attributes:
         motor_a_speed: Motor A speed (-100 to 100)
         motor_b_speed: Motor B speed (-100 to 100)
-        led_color: LED color (LEGO_COLORS constant)
+        lights: State of vehicle lights (one of LIGHTS_* constants)
         emergency_stop: True to immediately stop all motors
     """
     def __init__(self):
         self.motor_a_speed = 0
         self.motor_b_speed = 0
-        self.led_color = LEGO_COLORS.BLACK  # Off by default
+        self.lights = LIGHTS_OFF
+        self.brake = False
         self.emergency_stop = False
 
     def __repr__(self):
         return (f"VehicleCommand(motor_a={self.motor_a_speed}, "
                 f"motor_b={self.motor_b_speed}, "
-                f"led={self.led_color}, "
+                f"lights={self.lights}, "
                 f"e_stop={self.emergency_stop})")
 
 
@@ -101,8 +102,8 @@ class InputTranslator:
         self._prev_dpad_down = False
 
         # LED state tracking
-        self.headlights_on = False
-        self.taillights_on = False
+        self.lights_on = False
+        self.brake_lights_on = False
 
     def set_mode(self, mode: str):
         """
@@ -180,36 +181,6 @@ class InputTranslator:
         """
         return current and not previous
 
-    def _update_led_state(self, state: ControllerState) -> int:
-        """
-        Update LED state based on button presses.
-
-        Args:
-            state: Current controller state
-
-        Returns:
-            LED color value
-        """
-        # A button toggles headlights (white)
-        if self._handle_button_press(state.button_a, self._prev_button_a):
-            self.headlights_on = not self.headlights_on
-            print(f"Headlights: {'ON' if self.headlights_on else 'OFF'}")
-
-        # B button toggles taillights (red)
-        if self._handle_button_press(state.button_b, self._prev_button_b):
-            self.taillights_on = not self.taillights_on
-            print(f"Taillights: {'ON' if self.taillights_on else 'OFF'}")
-
-        # Determine color based on state
-        if self.headlights_on and self.taillights_on:
-            return LEGO_COLORS.YELLOW  # Both on = yellow (compromise)
-        elif self.headlights_on:
-            return LEGO_COLORS.WHITE
-        elif self.taillights_on:
-            return LEGO_COLORS.RED
-        else:
-            return LEGO_COLORS.BLACK  # Off
-
     def translate(self, state: ControllerState) -> VehicleCommand:
         """
         Translate controller state to vehicle command.
@@ -238,6 +209,10 @@ class InputTranslator:
             self.adjust_speed_limit(self.speed_limit_step)
         if self._handle_button_press(state.dpad_down, self._prev_dpad_down):
             self.adjust_speed_limit(-self.speed_limit_step)
+
+        # Handle lights (A button)
+        if self._handle_button_press(state.button_a, self._prev_button_a):
+            self.lights_on = not self.lights_on
 
         # Get mode parameters
         params = self.MODE_PARAMS[self.mode]
@@ -278,7 +253,8 @@ class InputTranslator:
         cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled, 100)  # Steering not limited by speed limit
 
         # Update LED state
-        cmd.led_color = self._update_led_state(state)
+        cmd.lights = LIGHTS_ON if self.lights_on else LIGHTS_OFF
+        # TODO: handle brake lights
 
         # Update button state tracking
         self._update_button_state(state)
@@ -299,11 +275,11 @@ class InputTranslator:
         Get current translator status.
 
         Returns:
-            Dictionary with mode, limits, and LED states
+            Dictionary with mode, limits, and light status
         """
         return {
             'mode': self.mode,
             'max_speed_limit': self.max_speed_limit,
-            'headlights': self.headlights_on,
-            'taillights': self.taillights_on
+            'lights_on': self.lights_on,
+            'brake_lights_on': self.brake_lights_on,
         }

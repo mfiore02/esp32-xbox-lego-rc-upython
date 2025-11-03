@@ -12,7 +12,7 @@ Run from REPL:
 import time
 from src.input_translator import InputTranslator, ControlMode, VehicleCommand
 from src.xbox_client import ControllerState
-from src.utils.constants import LEGO_COLORS
+from src.utils.constants import LIGHTS_ON, LIGHTS_OFF, LIGHTS_BRAKE
 
 
 def create_neutral_state():
@@ -38,7 +38,7 @@ def test_neutral_state():
 
     assert cmd.motor_a_speed == 0, f"Expected motor_a=0, got {cmd.motor_a_speed}"
     assert cmd.motor_b_speed == 0, f"Expected motor_b=0, got {cmd.motor_b_speed}"
-    assert cmd.led_color == LEGO_COLORS.BLACK, "Expected LEDs off"
+    assert cmd.lights == LIGHTS_OFF, f"Expected lights off ({LIGHTS_OFF}), got {cmd.lights}"
     assert not cmd.emergency_stop, "Unexpected emergency stop"
 
     print("✓ PASSED: Neutral state produces zero output")
@@ -275,60 +275,49 @@ def test_emergency_stop():
     return True
 
 
-def test_led_control():
-    """Test LED control (A=headlights, B=taillights)."""
+def test_lights():
+    """Test light control (A=lights on/off)."""
     print("\n" + "="*60)
-    print("TEST: LED Control")
+    print("TEST: light Control")
     print("="*60)
 
     translator = InputTranslator()
     state = create_neutral_state()
 
-    # Initial state (LEDs off)
+    # Initial state (lights off)
     cmd = translator.translate(state)
-    print(f"Initial LED state: {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.BLACK
+    print(f"Initial light state: {cmd.lights}")
+    assert cmd.lights == LIGHTS_OFF, f"Expected lights off ({LIGHTS_OFF}), got {cmd.lights}"
 
-    # Press A button (toggle headlights on)
+    # Press A button (toggle lights on)
     state.button_a = True
     cmd = translator.translate(state)
-    print(f"After A press (headlights ON): {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.WHITE
-    assert translator.headlights_on
+    print(f"After A press (lights OFF): {cmd.lights}")
+    assert cmd.lights == LIGHTS_ON, f"Expected lights on ({LIGHTS_ON}), got {cmd.lights}"
+    assert translator.lights_on, f"Expected lights_on=True, got {translator.lights_on}"
 
-    # Release A button (stay on)
+    # Release A button (lights stay on)
     state.button_a = False
     cmd = translator.translate(state)
-    print(f"After A release (headlights still ON): {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.WHITE
+    print(f"After A release (lights ON): {cmd.lights}")
+    assert cmd.lights == LIGHTS_ON, f"Expected lights on ({LIGHTS_ON}), got {cmd.lights}"
+    assert translator.lights_on, f"Expected lights_on=True, got {translator.lights_on}"
 
-    # Press A again (toggle headlights off)
+    # Press A again (toggle lights off)
     state.button_a = True
     cmd = translator.translate(state)
-    print(f"After second A press (headlights OFF): {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.BLACK
-    assert not translator.headlights_on
+    print(f"After second A press (lights OFF): {cmd.lights}")
+    assert cmd.lights == LIGHTS_OFF, f"Expected lights on ({LIGHTS_OFF}), got {cmd.lights}"
+    assert not translator.lights_on, f"Expected lights_on=False, got {translator.lights_on}"
 
-    # Test taillights (B button)
+    # Release A again (lights stay off)
     state.button_a = False
-    state.button_b = True
     cmd = translator.translate(state)
-    print(f"After B press (taillights ON): {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.RED
-    assert translator.taillights_on
+    print(f"After second A release (lights OFF): {cmd.lights}")
+    assert cmd.lights == LIGHTS_OFF, f"Expected lights off ({LIGHTS_OFF}), got {cmd.lights}"
+    assert not translator.lights_on, f"Expected lights_on=False, got {translator.lights_on}"
 
-    # Test both lights on (should be yellow)
-    # Taillights are currently ON from previous test
-    state.button_b = False  # Release B (taillights stay ON)
-    translator.translate(state)  # Update button state
-    state.button_a = True   # Press A to toggle headlights ON
-    cmd = translator.translate(state)  # Now both should be ON
-    print(f"With both lights ON: {cmd.led_color}")
-    assert cmd.led_color == LEGO_COLORS.YELLOW
-    assert translator.headlights_on
-    assert translator.taillights_on
-
-    print("✓ PASSED: LED control works correctly")
+    print("✓ PASSED: light control works correctly")
     return True
 
 
@@ -416,20 +405,22 @@ def test_status_reporting():
 
     assert 'mode' in status
     assert 'max_speed_limit' in status
-    assert 'headlights' in status
-    assert 'taillights' in status
+    assert 'lights_on' in status
+    assert 'brake_lights_on' in status
 
     # Change some settings
     translator.set_mode(ControlMode.TURBO)
     translator.adjust_speed_limit(-20)
-    translator.headlights_on = True
+    translator.lights_on = True
+    translator.brake_lights_on = True
 
     status = translator.get_status()
     print(f"Updated status: {status}")
 
     assert status['mode'] == ControlMode.TURBO
     assert status['max_speed_limit'] == 80
-    assert status['headlights'] == True
+    assert status['lights_on'] == True
+    assert status['brake_lights_on'] == True
 
     print("✓ PASSED: Status reporting works correctly")
     return True
@@ -449,7 +440,7 @@ def run_all_tests():
         ("Control Modes", test_control_modes),
         ("Speed Limit", test_speed_limit),
         ("Emergency Stop", test_emergency_stop),
-        ("LED Control", test_led_control),
+        ("LED Control", test_lights),
         ("Button Edge Detection", test_button_edge_detection),
         ("Combined Inputs", test_combined_inputs),
         ("Status Reporting", test_status_reporting),
@@ -522,8 +513,8 @@ def emergency():
     return test_emergency_stop()
 
 def leds():
-    """Quick test: LED control"""
-    return test_led_control()
+    """Quick test: light control"""
+    return test_lights()
 
 def buttons():
     """Quick test: button edge detection"""

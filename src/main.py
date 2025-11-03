@@ -19,7 +19,6 @@ import asyncio
 from src.ble_manager import BLEManager
 from src.input_translator import InputTranslator, ControlMode, VehicleCommand
 from src.utils.bonding_utils import clear_bonding_data
-from src.utils.constants import LEGO_COLORS
 
 
 class RCCarController:

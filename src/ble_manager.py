@@ -56,6 +56,76 @@ class BLEManager:
         # Status callback
         self.status_callback = None
 
+    async def scan_xbox(self, timeout_ms: int = 10000) -> dict:
+        """
+        Scan for Xbox controller.
+
+        Args:
+            timeout_ms: Scan timeout in milliseconds
+
+        Returns:
+            Dictionary with scan results:
+            {
+                "xbox": device or None,
+                "xbox_found": bool,
+            }
+        """
+        results = {
+            "xbox": None,
+            "xbox_found": False,
+        }
+
+        print("\nScanning for Xbox controller...")
+        self.xbox_state = ConnectionState.SCANNING
+        self._notify_status()
+
+        self.xbox_device = await scan_for_device("xbox", timeout_ms=timeout_ms)
+        if self.xbox_device:
+            print(f"✓ Found Xbox controller")
+            results["xbox"] = self.xbox_device
+            results["xbox_found"] = True
+        else:
+            print("✗ Xbox controller not found")
+            self.xbox_state = ConnectionState.DISCONNECTED
+
+        self._notify_status()
+        return results
+    
+    async def scan_lego(self, timeout_ms: int = 10000) -> dict:
+        """
+        Scan for LEGO hub.
+
+        Args:
+            timeout_ms: Scan timeout in milliseconds
+
+        Returns:
+            Dictionary with scan results:
+            {
+                "lego": device or None,
+                "lego_found": bool
+            }
+        """
+        results = {
+            "lego": None,
+            "lego_found": False
+        }
+
+        print("\nScanning for LEGO hub...")
+        self.lego_state = ConnectionState.SCANNING
+        self._notify_status()
+
+        self.lego_device = await scan_for_device("technic move", timeout_ms=timeout_ms)
+        if self.lego_device:
+            print(f"✓ Found LEGO hub")
+            results["lego"] = self.lego_device
+            results["lego_found"] = True
+        else:
+            print("✗ LEGO hub not found")
+            self.lego_state = ConnectionState.DISCONNECTED
+
+        self._notify_status()
+        return results
+
     async def scan_devices(self, timeout_ms: int = 10000) -> dict:
         """
         Scan for both Xbox controller and LEGO hub.
@@ -74,10 +144,6 @@ class BLEManager:
         """
         print("\n=== Scanning for devices ===")
 
-        self.xbox_state = ConnectionState.SCANNING
-        self.lego_state = ConnectionState.SCANNING
-        self._notify_status()
-
         results = {
             "xbox": None,
             "lego": None,
@@ -86,29 +152,82 @@ class BLEManager:
         }
 
         # Scan for Xbox controller
-        print("Scanning for Xbox controller...")
-        self.xbox_device = await scan_for_device("xbox", timeout_ms=timeout_ms)
-        if self.xbox_device:
-            results["xbox"] = self.xbox_device
-            results["xbox_found"] = True
-            print(f"✓ Found Xbox controller")
-        else:
-            print("✗ Xbox controller not found")
-            self.xbox_state = ConnectionState.DISCONNECTED
+        xbox_results = await self.scan_xbox(timeout_ms=timeout_ms)
 
         # Scan for LEGO hub
-        print("\nScanning for LEGO hub...")
-        self.lego_device = await scan_for_device("technic move", timeout_ms=timeout_ms)
-        if self.lego_device:
-            results["lego"] = self.lego_device
-            results["lego_found"] = True
-            print(f"✓ Found LEGO hub")
-        else:
-            print("✗ LEGO hub not found")
-            self.lego_state = ConnectionState.DISCONNECTED
+        lego_results = await self.scan_lego(timeout_ms=timeout_ms)
 
-        self._notify_status()
+        results.update(xbox_results)
+        results.update(lego_results)
         return results
+    
+    async def connect_xbox(self, device) -> bool:
+        """
+        Connect to Xbox controller.
+
+        Args:
+            device: BLE device object from scan
+
+        Returns:
+            True if connection successful, False otherwise
+        """
+        if not device:
+            print("✗ No Xbox device provided for connection")
+            return False
+        
+        print("\n=== Connecting to Xbox controller ===")
+        self.xbox_state = ConnectionState.CONNECTING
+        self._notify_status()
+
+        try:
+            success = await self.xbox_client.connect(device)
+            if success:
+                self.xbox_state = ConnectionState.CONNECTED
+                print("✓ Xbox controller connected")
+            else:
+                self.xbox_state = ConnectionState.ERROR
+                print("✗ Xbox connection failed")
+            self._notify_status()
+            return success
+        except Exception as e:
+            self.xbox_state = ConnectionState.ERROR
+            print(f"✗ Xbox connection error: {e}")
+            self._notify_status()
+            return False
+        
+    async def connect_lego(self, device) -> bool:
+        """
+        Connect to LEGO hub.
+
+        Args:
+            device: BLE device object from scan
+
+        Returns:
+            True if connection successful, False otherwise
+        """
+        if not device:
+            print("✗ No LEGO device provided for connection")
+            return False
+        
+        print("\n=== Connecting to LEGO hub ===")
+        self.lego_state = ConnectionState.CONNECTING
+        self._notify_status()
+
+        try:
+            success = await self.lego_client.connect(device)
+            if success:
+                self.lego_state = ConnectionState.CONNECTED
+                print("✓ LEGO hub connected")
+            else:
+                self.lego_state = ConnectionState.ERROR
+                print("✗ LEGO connection failed")
+            self._notify_status()
+            return success
+        except Exception as e:
+            self.lego_state = ConnectionState.ERROR
+            print(f"✗ LEGO connection error: {e}")
+            self._notify_status()
+            return False
 
     async def connect_all(self, xbox_device=None, lego_device=None) -> dict:
         """
@@ -127,8 +246,6 @@ class BLEManager:
                 "errors": list of error messages
             }
         """
-        print("\n=== Connecting to devices ===")
-
         # Use provided devices or stored devices from scan
         xbox_dev = xbox_device or self.xbox_device
         lego_dev = lego_device or self.lego_device
@@ -140,51 +257,18 @@ class BLEManager:
             "errors": []
         }
 
-        # Connect to Xbox controller
-        if xbox_dev:
-            self.xbox_state = ConnectionState.CONNECTING
-            self._notify_status()
-
-            try:
-                xbox_success = await self.xbox_client.connect(xbox_dev)
-                if xbox_success:
-                    self.xbox_state = ConnectionState.CONNECTED
-                    results["xbox_connected"] = True
-                    print("✓ Xbox controller connected")
-                else:
-                    self.xbox_state = ConnectionState.ERROR
-                    results["errors"].append("Xbox connection failed")
-                    print("✗ Xbox connection failed")
-            except Exception as e:
-                self.xbox_state = ConnectionState.ERROR
-                results["errors"].append(f"Xbox error: {e}")
-                print(f"✗ Xbox error: {e}")
+        if not xbox_dev:
+            results["errors"].append("No Xbox device available for connection")
+            print("✗ No Xbox device available for connection")
+        elif not lego_dev:
+            results["errors"].append("No LEGO device available for connection")
+            print("✗ No LEGO device available for connection")
         else:
-            results["errors"].append("Xbox device not available")
-            print("✗ Xbox device not available for connection")
-
-        # Connect to LEGO hub
-        if lego_dev:
-            self.lego_state = ConnectionState.CONNECTING
-            self._notify_status()
-
-            try:
-                lego_success = await self.lego_client.connect(lego_dev)
-                if lego_success:
-                    self.lego_state = ConnectionState.CONNECTED
-                    results["lego_connected"] = True
-                    print("✓ LEGO hub connected")
-                else:
-                    self.lego_state = ConnectionState.ERROR
-                    results["errors"].append("LEGO connection failed")
-                    print("✗ LEGO connection failed")
-            except Exception as e:
-                self.lego_state = ConnectionState.ERROR
-                results["errors"].append(f"LEGO error: {e}")
-                print(f"✗ LEGO error: {e}")
-        else:
-            results["errors"].append("LEGO device not available")
-            print("✗ LEGO device not available for connection")
+            print("\n=== Connecting to devices ===")
+             # Connect to Xbox controller
+            results["xbox_connected"] = await self.connect_xbox(xbox_dev)
+            # Connect to LEGO hub
+            results["lego_connected"] = await self.connect_lego(lego_dev)
 
         # Check if both connected
         results["both_connected"] = results["xbox_connected"] and results["lego_connected"]
