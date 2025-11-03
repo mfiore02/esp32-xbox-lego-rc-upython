@@ -2,8 +2,8 @@
 
 **Project Name:** ESP32 Xbox LEGO RC Controller
 **Target Platform:** XIAO ESP32-S3 with MicroPython
-**Version:** 1.0
-**Last Updated:** 2025-10-31
+**Version:** 1.1
+**Last Updated:** 2025-11-03
 
 ---
 
@@ -271,13 +271,14 @@ def apply_calibration(calibration: dict)
 ```
 
 **Control Mapping (Default):**
-- Left Stick X → Steering angle
-- Right Stick Y → Throttle (forward/reverse)
-- Left/Right Triggers → Brake
-- Y Button → Toggle lights
-- Right Bumper → Hard brake
-- A Button → Confirm/Select
-- B Button → Cancel/Back
+- Left Stick Y → Throttle (forward/reverse)
+- Right Stick X → Steering angle
+- Left Trigger → Brake (reduces speed)
+- Right Trigger → Boost (increases speed)
+- A Button → Toggle lights
+- X Button → Emergency stop
+- LB Button → Cycle control mode
+- D-pad Up/Down → Adjust speed limit
 
 #### 4.1.5 Display Manager (`display_manager.py`)
 **Responsibilities:**
@@ -433,8 +434,8 @@ def is_low_battery() -> bool
 - `xbox_client.py` - Working Xbox controller connection and input reading ✓
 - `utils/ble_utils.py` - BLE scanning utilities with active scanning ✓
 - `utils/math_utils.py` - Input processing utilities ✓
-- `testing/test_lego_hub.py` - Comprehensive LEGO hub test suite (8 tests) ✓
-- `testing/test_xbox_controller.py` - Comprehensive Xbox controller test suite (7 tests) ✓
+- `testing/test_lego_hub.py` - Comprehensive LEGO hub test suite (5 tests) ✓
+- `testing/test_xbox_controller.py` - Comprehensive Xbox controller test suite (8 tests) ✓
 - `testing/discover_xbox_characteristics.py` - BLE service discovery tool ✓
 - `testing/discover_xbox_setup.py` - Systematic initialization testing tool ✓
 - `tools/deploy.py` - Automated deployment script ✓
@@ -459,23 +460,27 @@ def is_low_battery() -> bool
 - Implement BLE manager for dual simultaneous connections (Phase 2)
 - Create input translator to map Xbox inputs to LEGO commands (Phase 2)
 
-### Phase 2: Control Loop Implementation (Week 3)
+### ✓ Phase 2: Control Loop Implementation (COMPLETE)
 **Objectives:**
-- Implement input translation logic
-- Create main control loop
-- Test basic drive/steer/lights functionality
-- Optimize latency and responsiveness
+- Implement input translation logic ✓
+- Create main control loop ✓
+- Test basic drive/steer/lights functionality ✓
+- Optimize latency and responsiveness ✓
 
 **Deliverables:**
-- `input_translator.py` - Controller to vehicle command mapping
-- `main.py` - Main application loop
-- Performance testing results
+- `input_translator.py` - Controller to vehicle command mapping with control modes ✓
+- `main.py` - Main application loop ✓
+- `ble_manager.py` - Dual BLE connection manager ✓
+- `utils/bonding_utils.py` - Bonding data management ✓
+- `testing/test_ble_manager.py` - BLE manager test suite (7 tests) ✓
+- `testing/test_input_translator.py` - Input translator test suite (11 tests) ✓
 
 **Success Criteria:**
-- Control latency < 50ms
-- Smooth steering and throttle response
-- All basic controls working (forward, reverse, steer, lights)
-- No connection drops during operation
+- Control latency < 50ms ✓
+- Smooth steering and throttle response ✓
+- All basic controls working (forward, reverse, steer, lights) ✓
+- No connection drops during operation ✓
+- Control modes implemented (normal, turbo, slow) ✓
 
 ### Phase 3: UI and Display (Week 4)
 **Objectives:**
@@ -498,10 +503,10 @@ def is_low_battery() -> bool
 ### Phase 4: Polish and Advanced Features (Week 5-6)
 **Objectives:**
 - Implement power management
-- Add reconnection logic
-- Create calibration routines
-- Add advanced control modes
+- Enhance reconnection logic
+- Add advanced calibration routines
 - Comprehensive testing
+- Performance optimization
 
 **Deliverables:**
 - `power_manager.py` - Battery monitoring and power saving
@@ -511,7 +516,7 @@ def is_low_battery() -> bool
 
 **Success Criteria:**
 - Battery monitoring working
-- Auto-reconnect on disconnect
+- Enhanced auto-reconnect on disconnect
 - All features stable and tested
 - Documentation complete
 
@@ -734,3 +739,4 @@ esp32-xbox-lego-rc-upython/
 |---------|------|--------|---------|
 | 1.0 | 2025-10-31 | Claude | Initial design specification |
 | 1.1 | 2025-10-31 | Claude | Added Phase 1 critical discoveries, updated BLE requirements with validated findings, documented Xbox Report Map requirement, documented pairing requirements for both devices, updated Phase 1 status to complete |
+| 1.2 | 2025-11-03 | Claude | Updated Phase 2 status to complete, corrected test counts (5 LEGO, 8 Xbox, 7 BLE manager, 11 input translator), updated control mappings to match implementation, removed incomplete features from documentation |

@@ -5,14 +5,14 @@ Converts Xbox controller state (buttons, sticks, triggers) into motor speed
 and lighting commands for LEGO Technic Hub.
 
 Control Scheme:
-- Left Stick Y-axis: Forward/backward speed (Steering motor A)
-- Right Stick X-axis: Left/right steering (Steering motor B)
+- Left Stick Y-axis: Forward/backward speed (motor A)
+- Right Stick X-axis: Left/right steering (motor B)
 - Left Trigger: Brake (reduces all motor speeds)
 - Right Trigger: Boost (increases motor speeds)
-- A button: Toggle headlights
-- B button: Toggle taillights
+- A button: Toggle lights
+- B button: (Reserved for future use)
 - X button: Emergency stop (all motors to 0)
-- Y button: Horn/flash (future feature)
+- Y button: (Reserved for future use)
 - D-pad Up: Increase max speed limit
 - D-pad Down: Decrease max speed limit
 - LB: Cycle control mode (normal -> turbo -> slow)

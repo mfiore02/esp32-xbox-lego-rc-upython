@@ -95,7 +95,7 @@ See [TESTING_QUICKSTART.md](TESTING_QUICKSTART.md) for detailed instructions.
 **Achievements:**
 - ✓ LEGO hub BLE client with motor control
 - ✓ Xbox controller BLE client with full input reading
-- ✓ Comprehensive test suites (15 tests total)
+- ✓ Comprehensive test suites (13 tests total)
 - ✓ Automated deployment tools
 - ✓ Complete documentation
 
@@ -137,9 +137,9 @@ Ready for integrated hardware testing!
 ### 🎯 Phase 4: Polish & Features (PLANNED)
 
 - Power management
-- Auto-reconnection
-- Control modes (normal, turbo, slow)
-- Calibration routines
+- Auto-reconnection improvements
+- Advanced calibration routines
+- Additional control refinements
 
 ## Documentation
 
@@ -168,8 +168,8 @@ esp32-xbox-lego-rc-upython/
 │       ├── math_utils.py               # Input processing utilities
 │       └── bonding_utils.py            # Bonding data management (Phase 2)
 ├── testing/
-│   ├── test_lego_hub.py                # LEGO hub test suite (8 tests)
-│   ├── test_xbox_controller.py         # Xbox controller test suite (9 tests)
+│   ├── test_lego_hub.py                # LEGO hub test suite (5 tests)
+│   ├── test_xbox_controller.py         # Xbox controller test suite (8 tests)
 │   ├── test_ble_manager.py             # BLE manager test suite (7 tests, Phase 2)
 │   ├── test_input_translator.py        # Input translator test suite (11 tests, Phase 2)
 │   ├── discover_xbox_characteristics.py # BLE service discovery
@@ -191,8 +191,8 @@ esp32-xbox-lego-rc-upython/
 | Right Stick X | Left/Right Steering (Motor B) |
 | Left Trigger | Brake (reduces speed) |
 | Right Trigger | Boost (increases speed) |
-| A Button | Toggle Headlights (white) |
-| B Button | Toggle Taillights (red) |
+| A Button | Toggle Lights |
+| B Button | *(Reserved)* |
 | X Button | Emergency Stop |
 | Y Button | *(Reserved)* |
 | LB Button | Cycle Control Mode |
@@ -256,15 +256,14 @@ See [DESIGN_SPEC.md](DESIGN_SPEC.md) section 6.2.1 for complete details.
 
 The project includes comprehensive test suites:
 
-**LEGO Hub Tests (8 tests):**
+**LEGO Hub Tests (5 tests):**
 - Scanning and connection
 - Steering calibration
-- LED color control
-- Motor control
 - Drive commands
+- LED control
 - Interactive demo
 
-**Xbox Controller Tests (7 tests):**
+**Xbox Controller Tests (8 tests):**
 - Scanning and connection
 - Single report reading
 - Button mapping verification
@@ -324,5 +323,5 @@ MIT License - See source files for details.
 ---
 
 **Project Version:** 2.0
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-03
 **Status:** Phase 2 Complete ✓ - Ready for Hardware Testing
