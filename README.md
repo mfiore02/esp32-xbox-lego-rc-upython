@@ -17,10 +17,10 @@ This project creates a wireless bridge between an Xbox Wireless Controller and a
 - **Full Input Support:** All buttons, analog sticks, triggers, and D-pad
 - **Control Modes:** Normal, Turbo, and Slow modes with configurable speed limits
 - **Smart Input Curves:** Exponential control curves for smooth, precise control
-- **LED Control:** Toggle headlights and taillights independently
+- **Light Control:** Toggle lights on and off
 - **Motor Control:** Dual motor drive with steering, brake, and boost
 - **Auto-Recovery:** Bonding data management ensures reliable reconnections
-- **Comprehensive Testing:** 35+ test scripts validating all functionality
+- **Comprehensive Testing:** Test scripts validating all functionality
 - **Well Documented:** Complete design spec, testing guides, and API documentation
 
 ## Hardware Requirements

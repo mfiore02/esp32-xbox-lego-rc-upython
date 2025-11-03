@@ -213,12 +213,6 @@ def clean_device(port_arg):
     return True
 
 
-def list_files(port_arg):
-    """List files on device."""
-    print("\n=== Files on device ===")
-    run_mpremote(port_arg + ["ls"])
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Deploy code to ESP32-S3 device"
@@ -229,24 +223,14 @@ def main():
         default=None
     )
     parser.add_argument(
-        "--libs",
-        action="store_true",
-        help=f"Also deploy test scripts: {" ".join([l for l in libs])}"
-    )
-    parser.add_argument(
         "--tests",
         action="store_true",
-        help=f"Also deploy test scripts: {" ".join([t for t in test_files])}"
+        help=f"Deploy test scripts: {" ".join([t for t in test_files])}"
     )
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="Clean device and exit"
-    )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List files on device and exit"
+        help="Remove all installed files on device and exit"
     )
 
     args = parser.parse_args()
@@ -264,11 +248,6 @@ def main():
     print("ESP32 Xbox LEGO RC Controller - Deployment Script")
     print("=" * 60)
 
-    # List files only
-    if args.list:
-        list_files(port_arg)
-        sys.exit(0)
-
     # Clean if requested
     if args.clean:
         clean_device(port_arg)
@@ -276,6 +255,7 @@ def main():
 
     # Create directories
     for d in dirs_to_create:
+        # TODO: Skip if dir already exists
         print(f"Creating directory {d}...")
         if not run_mpremote(port_arg + ["mkdir", f":{d}"]):
             print("\n✗ Directory creation failed")
@@ -284,6 +264,7 @@ def main():
 
     # Install libraries if requested
     if args.libs:
+        # TODO: Warn and skip if already installed
         if not install_libraries(port_arg):
             print("\n✗ Library installation failed")
             sys.exit(1)
@@ -295,10 +276,6 @@ def main():
     if args.tests:
         if not deploy_tests(port_arg):
             success = False
-
-    # Install libraries
-    if success and not install_libraries(port_arg):
-        success = False
 
     # Deploy src
     if success and not deploy_primary(port_arg):
@@ -316,13 +293,12 @@ def main():
         print("1. Connect to device REPL: mpremote")
         if args.tests:
             print("2. Run tests:")
-            print("   >>> import test_lego_hub")
-            print("   >>> test_lego_hub.run()")
-            print("   >>> import test_xbox_controller")
-            print("   >>> test_xbox_controller.run()")
+            print("   >>> import <test>")
+            print("   >>> <test>.run()")
         else:
-            print("2. Deploy test scripts: python tools/deploy.py --test")
-            print("3. Run tests as above")
+            print("2. Run application:")
+            print("   >>> import main")
+            print("   >>> main.run()")
     else:
         print("✗ Deployment failed")
         sys.exit(1)
