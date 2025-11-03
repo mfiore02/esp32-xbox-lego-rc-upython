@@ -68,66 +68,6 @@ async def test_calibration(client):
     await asyncio.sleep(1)
 
 
-async def test_led_colors(client):
-    """Test LED color changes."""
-    print("\n=== Test 4: LED color test ===")
-
-    colors = [
-        (0, "Off"),
-        (9, "Red"),
-        (6, "Green"),
-        (3, "Blue"),
-        (10, "White"),
-    ]
-
-    for color_id, color_name in colors:
-        print(f"Setting LED to {color_name}...")
-        await client.change_led_color(color_id)
-        await asyncio.sleep(0.5)
-
-    print("✓ LED test complete")
-
-
-async def test_led_rgb(client):
-    """Test custom RGB LED colors."""
-    print("\n=== Test 5: RGB LED test ===")
-
-    rgb_colors = [
-        (255, 0, 0, "Red"),
-        (0, 255, 0, "Green"),
-        (0, 0, 255, "Blue"),
-        (255, 255, 0, "Yellow"),
-        (255, 0, 255, "Magenta"),
-        (0, 255, 255, "Cyan"),
-        (255, 255, 255, "White"),
-    ]
-
-    for r, g, b, name in rgb_colors:
-        print(f"Setting LED to {name} ({r},{g},{b})...")
-        await client.set_led_rgb(r, g, b)
-        await asyncio.sleep(0.5)
-
-    # Turn off
-    await client.set_led_rgb(0, 0, 0)
-    print("✓ RGB LED test complete")
-
-
-async def test_motor_control(client):
-    """Test individual motor control."""
-    print("\n=== Test 6: Motor control test ===")
-
-    # Test motor start/stop
-    print("Starting motor at 50% power...")
-    await client.motor_start_power(0x36, 50)
-    await asyncio.sleep(1)
-
-    print("Stopping motor with brake...")
-    await client.motor_stop(0x36, brake=True)
-    await asyncio.sleep(0.5)
-
-    print("✓ Motor control test complete")
-
-
 async def test_drive_commands(client):
     """Test drive commands with speed and steering."""
     print("\n=== Test 7: Drive command test ===")
@@ -233,13 +173,6 @@ async def run_all_tests():
 
         # Test 3: Calibration
         await test_calibration(client)
-
-        # Test 4-5: LEDs
-        await test_led_colors(client)
-        await test_led_rgb(client)
-
-        # Test 6: Motor control
-        await test_motor_control(client)
 
         # Test 7: Drive commands
         await test_drive_commands(client)

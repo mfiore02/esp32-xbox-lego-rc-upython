@@ -230,11 +230,6 @@ await client.drive(speed=50, angle=0, lights=client.LIGHTS_ON_ON)
 await asyncio.sleep(2)
 await client.drive(speed=0, angle=0, lights=client.LIGHTS_OFF_OFF)
 
-# Test LED colors
-await client.change_led_color(9)  # Red
-await asyncio.sleep(1)
-await client.change_led_color(6)  # Green
-
 # Disconnect when done
 await client.disconnect()
 ```

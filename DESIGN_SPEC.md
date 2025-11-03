@@ -223,9 +223,6 @@ class ControllerState:
 async def connect(device) -> bool
 async def disconnect()
 async def drive(speed: int, angle: int, lights: int)
-async def motor_start_power(motor_id: int, power: int)
-async def motor_stop(motor_id: int, brake: bool)
-async def change_led_color(r: int, g: int, b: int)
 async def calibrate_steering()
 def is_connected() -> bool
 ```

@@ -153,19 +153,6 @@ async def test_lego_commands_while_connected(manager):
     lego_client = manager.get_lego_client()
 
     try:
-        # Test LED color
-        print("  Changing LED to red...")
-        await lego_client.change_led_color(9)
-        await asyncio.sleep(1)
-
-        print("  Changing LED to green...")
-        await lego_client.change_led_color(6)
-        await asyncio.sleep(1)
-
-        print("  Changing LED to blue...")
-        await lego_client.change_led_color(3)
-        await asyncio.sleep(1)
-
         # Test drive command
         print("  Testing drive command (slow forward)...")
         await lego_client.drive(speed=20, angle=0, lights=lego_client.LIGHTS_OFF_OFF)
@@ -234,11 +221,12 @@ async def test_simultaneous_operations(manager):
     color_index = [0]
 
     try:
-        # Run for 8 seconds (2 seconds per color)
+        # Run for 8 seconds
         start_time = time.ticks_ms()
         duration_ms = 8000
-        last_color_change = start_time
-        color_change_interval = 2000  # Change color every 2 seconds
+        last_cmd_time = start_time
+        steer = 100  # Initial steering angle
+        cmd_interval = 2000  # Send command every 2 seconds
 
         while time.ticks_diff(time.ticks_ms(), start_time) < duration_ms:
             # Read Xbox input with short timeout
@@ -252,14 +240,14 @@ async def test_simultaneous_operations(manager):
             except asyncio.TimeoutError:
                 pass
 
-            # Change LED color every 2 seconds based on elapsed time
+            # Turn wheels 2 seconds based on elapsed time
             current_time = time.ticks_ms()
-            if time.ticks_diff(current_time, last_color_change) >= color_change_interval:
-                await lego_client.change_led_color(colors[color_index[0]])
+            if time.ticks_diff(current_time, last_cmd_time) >= cmd_interval:
+                await lego_client.drive(0, steer, lights=lego_client.LIGHTS_OFF_OFF)  # Turn wheels
+                steer = -steer  # Alternate direction
                 command_count[0] += 1
-                color_index[0] = (color_index[0] + 1) % len(colors)
-                last_color_change = current_time
-                print(f"  Color changed to {['Red', 'Green', 'Blue', 'Yellow'][color_index[0] - 1 if color_index[0] > 0 else 3]}")
+                last_cmd_time = current_time
+                print(f"  Turned to angle {steer}")
 
         print(f"\n✓ Processed {input_count[0]} Xbox inputs and {command_count[0]} LEGO commands simultaneously")
         print(f"  Duration: 8 seconds (actual time-based)")
@@ -374,10 +362,12 @@ def quick_test():
                     pass
 
             # Test LEGO command
-            print("  LEGO: Changing LED...")
+            print("  LEGO: Turning wheels...")
             lego = manager.get_lego_client()
-            await lego.change_led_color(9)  # Red
-            print("  ✓ LEGO command sent")
+            await lego.drive(speed=0, angle=100, lights=lego.LIGHTS_OFF_OFF)
+            await asyncio.sleep(1)
+            await lego.drive(speed=0, angle=0, lights=lego.LIGHTS_OFF_OFF)
+            print("  ✓ LEGO commands sent")
 
             await asyncio.sleep(1)
 

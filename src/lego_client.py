@@ -167,59 +167,6 @@ class LegoClient:
             print(f"Failed to send command: {e}")
             return False
 
-    async def motor_start_power(self, motor: int, power: int):
-        """
-        Start a motor with specified power.
-
-        Args:
-            motor: Motor port ID (use MOTOR_PORT_* constants)
-            power: Power level (-100 to 100, negative = reverse)
-
-        Returns:
-            True if command sent successfully
-        """
-        # Clamp power to valid range
-        power = max(-100, min(100, power))
-
-        # Build command: [0x08, 0x00, 0x81, motor, 0x00, 0x51, 0x00, power]
-        command = bytearray([
-            0x08,  # Length
-            0x00,  # Hub ID
-            0x81,  # Command type
-            motor & 0xFF,  # Motor port
-            self.SC_BUFFER_NO_FEEDBACK,
-            0x51,  # Execute immediately
-            self.MOTOR_MODE_POWER,
-            power & 0xFF  # Power (as signed byte)
-        ])
-
-        return await self.send_command(command)
-
-    async def motor_stop(self, motor: int, brake: bool = True):
-        """
-        Stop a motor.
-
-        Args:
-            motor: Motor port ID (use MOTOR_PORT_* constants)
-            brake: If True, brake motor; if False, let it coast
-
-        Returns:
-            True if command sent successfully
-        """
-        # Build command: [0x08, 0x00, 0x81, motor, 0x00, 0x51, 0x00, brake_state]
-        command = bytearray([
-            0x08,
-            0x00,
-            0x81,
-            motor & 0xFF,
-            self.SC_BUFFER_NO_FEEDBACK,
-            0x51,
-            self.MOTOR_MODE_POWER,
-            self.END_STATE_BRAKE if brake else self.END_STATE_FLOAT
-        ])
-
-        return await self.send_command(command)
-
     async def drive(self, speed: int = 0, angle: int = 0, lights: int = LIGHTS_OFF):
         """
         Send drive command to control speed, steering, and lights.
@@ -287,75 +234,6 @@ class LegoClient:
         else:
             print("Steering calibration failed")
             return False
-
-    async def change_led_color(self, color_id: int):
-        """
-        Change the hub LED color.
-
-        Args:
-            color_id: Color ID (0-10, standard LEGO color palette)
-                     0=black/off, 1=pink, 2=purple, 3=blue, 4=light blue,
-                     5=cyan, 6=green, 7=yellow, 8=orange, 9=red, 10=white
-
-        Returns:
-            True if command sent successfully
-        """
-        command = bytearray([
-            0x08,
-            0x00,
-            0x81,
-            self.ID_LED,
-            self.IO_TYPE_RGB_LED,
-            0x51,
-            self.LED_MODE_COLOR,
-            color_id & 0xFF
-        ])
-
-        return await self.send_command(command)
-
-    async def set_led_rgb(self, r: int, g: int, b: int):
-        """
-        Set the hub LED to a custom RGB color.
-
-        Args:
-            r: Red value (0-255)
-            g: Green value (0-255)
-            b: Blue value (0-255)
-
-        Returns:
-            True if command sent successfully
-        """
-        # Clamp RGB values
-        r = max(0, min(255, r))
-        g = max(0, min(255, g))
-        b = max(0, min(255, b))
-
-        command = bytearray([
-            0x0A,  # Length (10 bytes)
-            0x00,
-            0x81,
-            self.ID_LED,
-            self.IO_TYPE_RGB_LED,
-            0x51,
-            self.LED_MODE_RGB,
-            r & 0xFF,
-            g & 0xFF,
-            b & 0xFF
-        ])
-
-        return await self.send_command(command)
-
-    async def set_led_color(self, color_id: int):
-        """
-        Alias for change_led_color() for consistency with main.py API.
-
-        Args:
-            color_id: Color ID (0-10, use LEGO_COLORS constants)
-
-        Returns:
-            True if command sent successfully
-        """
-        return await self.change_led_color(color_id)
 
     def get_connection_info(self) -> dict:
         """

@@ -140,9 +140,6 @@ mpremote
 >>> await asyncio.sleep(2)
 >>> await client.drive(speed=0, angle=0)
 
-# Turn LED red
->>> await client.change_led_color(9)
-
 # Disconnect
 >>> await client.disconnect()
 ```
