@@ -13,6 +13,7 @@ Usage:
 import asyncio
 import sys
 import time
+from utils.constants import LIGHTS_OFF, LIGHTS_ON, LIGHTS_BRAKE
 
 # Add src to path for imports
 sys.path.append('/src')
@@ -155,11 +156,11 @@ async def test_lego_commands_while_connected(manager):
     try:
         # Test drive command
         print("  Testing drive command (slow forward)...")
-        await lego_client.drive(speed=20, angle=0, lights=lego_client.LIGHTS_OFF_OFF)
+        await lego_client.drive(speed=20, angle=0, lights=LIGHTS_OFF)
         await asyncio.sleep(1)
 
         print("  Stopping...")
-        await lego_client.drive(speed=0, angle=0, lights=lego_client.LIGHTS_OFF_OFF)
+        await lego_client.drive(speed=0, angle=0, lights=LIGHTS_OFF)
 
         print("✓ LEGO commands executed successfully")
         return True
@@ -243,7 +244,7 @@ async def test_simultaneous_operations(manager):
             # Turn wheels 2 seconds based on elapsed time
             current_time = time.ticks_ms()
             if time.ticks_diff(current_time, last_cmd_time) >= cmd_interval:
-                await lego_client.drive(0, steer, lights=lego_client.LIGHTS_OFF_OFF)  # Turn wheels
+                await lego_client.drive(0, steer, lights=LIGHTS_OFF)  # Turn wheels
                 steer = -steer  # Alternate direction
                 command_count[0] += 1
                 last_cmd_time = current_time
@@ -364,9 +365,9 @@ def quick_test():
             # Test LEGO command
             print("  LEGO: Turning wheels...")
             lego = manager.get_lego_client()
-            await lego.drive(speed=0, angle=100, lights=lego.LIGHTS_OFF_OFF)
+            await lego.drive(speed=0, angle=100, lights=LIGHTS_OFF)
             await asyncio.sleep(1)
-            await lego.drive(speed=0, angle=0, lights=lego.LIGHTS_OFF_OFF)
+            await lego.drive(speed=0, angle=0, lights=LIGHTS_OFF)
             print("  ✓ LEGO commands sent")
 
             await asyncio.sleep(1)

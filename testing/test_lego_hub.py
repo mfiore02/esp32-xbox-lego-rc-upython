@@ -23,7 +23,7 @@ sys.path.append('/src')
 
 from lego_client import LegoClient
 from utils.ble_utils import scan_for_device
-from utils.constants import LEGO_NAME_PATTERN
+from utils.constants import LEGO_NAME_PATTERN, LIGHTS_ON, LIGHTS_OFF, LIGHTS_BRAKE
 
 
 async def test_scan():
@@ -86,7 +86,7 @@ async def test_drive_commands(client):
 
     for speed, angle, description in test_sequences:
         print(f"{description}: speed={speed}, angle={angle}")
-        await client.drive(speed=speed, angle=angle, lights=client.LIGHTS_OFF_OFF)
+        await client.drive(speed=speed, angle=angle, lights=LIGHTS_OFF)
         await asyncio.sleep(1.5)
 
     print("✓ Drive command test complete")
@@ -97,16 +97,16 @@ async def test_lights(client):
     print("\n=== Test 8: Lights test ===")
 
     light_states = [
-        (client.LIGHTS_OFF_OFF, "Lights OFF/OFF"),
-        (client.LIGHTS_OFF_ON, "Lights OFF/ON"),
-        (client.LIGHTS_ON_ON, "Lights ON/ON"),
-        (client.LIGHTS_OFF_OFF, "Lights OFF/OFF"),
+        (LIGHTS_OFF, "Lights OFF"),
+        (LIGHTS_ON, "Lights ON"),
+        (LIGHTS_OFF | LIGHTS_BRAKE, "Braking with lights OFF"),
+        (LIGHTS_ON | LIGHTS_BRAKE, "Braking with lights ON"),
     ]
 
     for lights, description in light_states:
         print(f"{description}")
         await client.drive(speed=0, angle=0, lights=lights)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
     print("✓ Lights test complete")
 
@@ -129,24 +129,23 @@ async def interactive_mode(client):
     for _ in range(4):
         # Drive forward
         print("Forward...")
-        await client.drive(speed=40, angle=0, lights=client.LIGHTS_ON_ON)
+        await client.drive(speed=40, angle=0, lights=LIGHTS_ON)
         await asyncio.sleep(2)
 
         # Stop
-        await client.drive(speed=0, angle=0, lights=client.LIGHTS_ON_ON)
+        await client.drive(speed=0, angle=0, lights=LIGHTS_ON)
         await asyncio.sleep(0.5)
 
         # Turn 90 degrees (approximate)
         print("Turning...")
-        await client.drive(speed=0, angle=80, lights=client.LIGHTS_OFF_ON)
-        await asyncio.sleep(1)
+        await client.drive(speed=0, angle=80, lights=LIGHTS_ON)
 
         # Stop
-        await client.drive(speed=0, angle=0, lights=client.LIGHTS_ON_ON)
+        await client.drive(speed=0, angle=0, lights=LIGHTS_ON)
         await asyncio.sleep(0.5)
 
     # Final stop
-    await client.drive(speed=0, angle=0, lights=client.LIGHTS_OFF_OFF)
+    await client.drive(speed=0, angle=0, lights=LIGHTS_OFF)
     print("Pattern complete!")
 
 

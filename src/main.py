@@ -19,6 +19,7 @@ import asyncio
 from src.ble_manager import BLEManager
 from src.input_translator import InputTranslator, ControlMode, VehicleCommand
 from src.utils.bonding_utils import clear_bonding_data
+from src.utils.constants import LIGHTS_OFF, LIGHTS_ON, LIGHTS_BRAKE
 
 
 class RCCarController:
@@ -105,8 +106,7 @@ class RCCarController:
         print("  Right Stick X   : Left/Right Steering")
         print("  Left Trigger    : Brake")
         print("  Right Trigger   : Boost")
-        print("  A Button        : Toggle Headlights")
-        print("  B Button        : Toggle Taillights")
+        print("  A Button        : Toggle Lights")
         print("  X Button        : Emergency Stop")
         print("  LB Button       : Cycle Control Mode")
         print("  D-pad Up/Down   : Adjust Speed Limit")
@@ -177,9 +177,9 @@ class RCCarController:
                     break
                 
                 if self.cmd.emergency_stop:
-                    await lego_client.drive(0, 0, lego_client.LIGHTS_OFF_OFF)
+                    await lego_client.drive(0, 0, LIGHTS_OFF)
                 else:
-                    await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.led_color)
+                    await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.lights)
 
                 await asyncio.sleep_ms(50)  # Give some time to other tasks
         except KeyboardInterrupt:
@@ -197,9 +197,9 @@ class RCCarController:
         try:
             lego_client = self.ble_manager.get_lego_client()
 
-            # Stop all motors and turn off LEDs
+            # Stop all motors and turn off lights
             print("Stopping motors and turning off LEDs...")
-            await lego_client.drive(0, 0, lego_client.LIGHTS_OFF_OFF)
+            await lego_client.drive(0, 0, LIGHTS_OFF)
 
         except Exception as e:
             print(f"Error during motor/LED shutdown: {e}")

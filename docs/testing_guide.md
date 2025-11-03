@@ -221,14 +221,15 @@ Once connected, you can test individual functions:
 ```python
 import test_lego_hub
 import asyncio
+from utils.constants import LIGHTS_ON, LIGHTS_OFF, LIGHTS_BRAKE
 
 # Run quick test to get connected client
 client = test_lego_hub.quick_test()
 
 # Test drive command
-await client.drive(speed=50, angle=0, lights=client.LIGHTS_ON_ON)
+await client.drive(speed=50, angle=0, lights=LIGHTS_ON)
 await asyncio.sleep(2)
-await client.drive(speed=0, angle=0, lights=client.LIGHTS_OFF_OFF)
+await client.drive(speed=0, angle=0, lights=LIGHTS_OFF)
 
 # Disconnect when done
 await client.disconnect()

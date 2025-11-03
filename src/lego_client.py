@@ -12,7 +12,7 @@ from utils.constants import (
     MOTOR_PORT_ALL,
     LIGHTS_OFF,
     LIGHTS_ON,
-    LIGHTS_BOTH_ON,
+    LIGHTS_BRAKE,
 )
 from utils.ble_utils import format_mac_address, bytes_to_hex
 
@@ -32,17 +32,6 @@ class LegoClient:
     MOTOR_MODE_POWER = 0x00
     END_STATE_BRAKE = 0x7F
     END_STATE_FLOAT = 0x00
-
-    # LED control constants
-    ID_LED = 0x32  # LED port ID
-    IO_TYPE_RGB_LED = 0x00
-    LED_MODE_COLOR = 0x00
-    LED_MODE_RGB = 0x01
-
-    # Light states (bit patterns from reference)
-    LIGHTS_OFF_OFF = 0b100
-    LIGHTS_OFF_ON = 0b101
-    LIGHTS_ON_ON = 0b000
 
     def __init__(self):
         """Initialize the LEGO client."""
@@ -176,7 +165,7 @@ class LegoClient:
         Args:
             speed: Throttle speed (-100 to 100, negative = reverse)
             angle: Steering angle (-100 to 100, negative = left, positive = right)
-            lights: Light state (use LIGHTS_* constants or class light constants)
+            lights: Lights state (use LIGHTS_* constants)
 
         Returns:
             True if command sent successfully
