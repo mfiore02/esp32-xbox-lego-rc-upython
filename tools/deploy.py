@@ -169,11 +169,13 @@ def install_libraries(port_arg):
     print("\n=== Installing required libraries ===")
 
     for lib in libs:
+        if run_mpremote(port_arg + ["ls", f"lib/{lib}"]):
+            print(f"Library {lib} already installed, skipping")
+            continue
         print(f"Installing {lib}...")
-
         if not run_mpremote(port_arg + ["mip", "install", lib]):
             print(f"Failed to install {lib}")
-            return False
+            return False 
 
     print("✓ Libraries installed")
     return True
@@ -255,27 +257,21 @@ def main():
 
     # Create directories
     for d in dirs_to_create:
-        # TODO: Skip if dir already exists
+        if run_mpremote(port_arg + ["ls", d]):
+            print(f"Directory {d} already exists, skipping creation")
+            continue
         print(f"Creating directory {d}...")
         if not run_mpremote(port_arg + ["mkdir", f":{d}"]):
             print("\n✗ Directory creation failed")
             sys.exit(1)
     print("✓ Directories created")
 
-    # Install libraries if requested
-    if args.libs:
-        # TODO: Warn and skip if already installed
-        if not install_libraries(port_arg):
-            print("\n✗ Library installation failed")
-            sys.exit(1)
-
-    # Deploy code
     success = True
 
-    # Deploy tests if requested
-    if args.tests:
-        if not deploy_tests(port_arg):
-            success = False
+    # Install libraries
+    if not install_libraries(port_arg):
+        print("\n✗ Library installation failed")
+        success = False
 
     # Deploy src
     if success and not deploy_primary(port_arg):
@@ -285,12 +281,17 @@ def main():
     if success and not deploy_utils(port_arg):
         success = False
 
+    # Deploy tests if requested
+    if success and args.tests:
+        if not deploy_tests(port_arg):
+            success = False
+
     # Summary
     print("\n" + "=" * 60)
     if success:
         print("✓ Deployment successful!")
         print("\nNext steps:")
-        print("1. Connect to device REPL: mpremote")
+        print("1. Connect to device REPL: mpremote soft-reset repl")
         if args.tests:
             print("2. Run tests:")
             print("   >>> import <test>")
