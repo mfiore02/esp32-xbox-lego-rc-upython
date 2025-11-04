@@ -184,7 +184,7 @@ class RCCarController:
                 else:
                     await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.lights)
 
-                await asyncio.sleep_ms(50)  # Give some time to other tasks
+                await asyncio.sleep_ms(10)  # Give some time to other tasks
         except KeyboardInterrupt:
             print("\n\nStopping (Ctrl+C pressed)...")
         except Exception as e:
