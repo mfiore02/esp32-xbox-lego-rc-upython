@@ -158,7 +158,6 @@ class RCCarController:
 
         def xbox_input_callback(state):
             """Callback for Xbox input updates."""
-            #print(xbox_client.format_state_compact(state))
             self.cmd = self.translator.translate(state)
             print(f"power: {self.cmd.motor_a_speed:+.2f}, steering: {self.cmd.motor_b_speed:+.2f}")
 

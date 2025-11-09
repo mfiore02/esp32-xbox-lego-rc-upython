@@ -99,10 +99,11 @@ class ControllerState:
     def __str__(self):
         """String representation for debugging."""
         return (
-            f"LS:({self.left_stick_x:.2f},{self.left_stick_y:.2f}) "
-            f"RS:({self.right_stick_x:.2f},{self.right_stick_y:.2f}) "
-            f"LT:{self.left_trigger:.2f} RT:{self.right_trigger:.2f} "
-            f"A:{self.button_a} B:{self.button_b} X:{self.button_x} Y:{self.button_y}"
+            f"LS:({self.left_stick_x:.2f},{self.left_stick_y:.2f}) {"●" if self.button_ls else "○"}\n"
+            f"RS:({self.right_stick_x:.2f},{self.right_stick_y:.2f}) {"●" if self.button_rs else "○"}\n"
+            f"LT:{self.left_trigger:.2f} LB: {"●" if self.button_lb else "○"} RT:{self.right_trigger:.2f} RB: {"●" if self.button_rb else "○"}\n"
+            f"A:{self.button_a} B:{self.button_b} X:{self.button_x} Y:{self.button_y}\n"
+            f"DPAD: {"▲" if self.dpad_up else "△"} {"▼" if self.dpad_down else "▽"} {"◀" if self.dpad_left else "◁"} {"▶" if self.dpad_right else "▷"}\n"
         )
 
 
@@ -377,42 +378,6 @@ class XboxClient:
         else:
             filled = int(abs(value) * width)
             return "·" * (width - filled) + char * filled
-    
-    def format_state_compact(self, state):
-        """Format complete controller state for display in as few lines as possible."""
-        lines = []
-
-        # Buttons
-        a = "●" if state.button_a else "○"
-        b = "●" if state.button_b else "○"
-        x = "●" if state.button_x else "○"
-        y = "●" if state.button_y else "○"
-        lb = "●" if state.button_lb else "○"
-        rb = "●" if state.button_rb else "○"
-        lines.append(f"A:{a} B:{b} X:{x} Y:{y} LB:{lb} RB:{rb}")
-
-        # Sticks/Triggers
-        ls = "●" if state.button_ls else "○"
-        lsx = f"{state.left_stick_x:+.2f}"
-        lsy = f"{state.left_stick_y:+.2f}"
-        rs = "●" if state.button_rs else "○"
-        rsx = f"{state.right_stick_x:+.2f}"
-        rsy = f"{state.right_stick_y:+.2f}"
-        lt = f"{state.left_trigger:.2f}"
-        rt = f"{state.right_trigger:.2f}"
-        lines.append(f"LS: {ls} X/Y {lsx}/{lsy} | RS: {rs} X/Y {rsx}/{rsy} | LT: {lt} | RT: {rt}")
-
-        # D-pad/Special Buttons
-        up = "▲" if state.dpad_up else "△"
-        down = "▼" if state.dpad_down else "▽"
-        left = "◀" if state.dpad_left else "◁"
-        right = "▶" if state.dpad_right else "▷"
-        view = "●" if state.button_view else "○"
-        menu = "●" if state.button_menu else "○"
-        share = "●" if state.button_share else "○"
-        lines.append(f"D-PAD: {up} {down} {left} {right} | View:{view} Menu:{menu} Share:{share}")
-
-        return "\n".join(lines)
     
     def format_state(self, state):
         """Format complete controller state for display."""

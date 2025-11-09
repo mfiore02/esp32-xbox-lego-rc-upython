@@ -348,7 +348,7 @@ async def test_full_state_display(client, duration=30):
 
     def input_callback(state):
         """Update display with new state."""
-        state_str = client.format_state_compact(state)
+        state_str = state.__str__()
         # Clear previous output (print new state)
         print("\n")  # Some spacing
         print(state_str)
