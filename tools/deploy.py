@@ -65,7 +65,7 @@ dirs_to_remove = [
 ]
 
 
-def run_mpremote(args, verbose=False):
+def run_mpremote(args, verbose=False) -> tuple[bool, str]:
     """Run mpremote command."""
     cmd = ["mpremote"] + args
     if verbose:
@@ -75,12 +75,11 @@ def run_mpremote(args, verbose=False):
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         if verbose and result.stdout:
             print(result.stdout)
-        return True
+        return True, ""
     except subprocess.CalledProcessError as e:
-        print(f"Error: {e}")
-        if e.stderr:
+        if verbose and e.stderr:
             print(e.stderr)
-        return False
+        return False, e.stderr
 
 
 def check_mpremote():
@@ -109,13 +108,14 @@ def deploy_utils(port_arg):
     for file in utility_files:
         src = root / file
         dst = f":{file}"
+        print(f"Uploading utility module {file}...")
         if not src.exists():
-            print(f"Warning: {file} not found, skipping")
+            print("Warning: file not found, skipping")
             continue
 
-        print(f"Uploading utility module {file}...")
-        if not run_mpremote(port_arg + ["cp", str(src), dst]):
-            print(f"Failed to upload {file}")
+        ret, stderr = run_mpremote(port_arg + ["cp", str(src), dst])
+        if not ret:
+            print(f"File not uploaded: {stderr.strip()}")
             return False
 
     print("✓ Utility modules deployed")
@@ -130,13 +130,14 @@ def deploy_primary(port_arg):
     for file in primary_files:
         src = root / file
         dst = f":{file}"
+        print(f"Uploading primary module {file}...")
         if not src.exists():
-            print(f"Warning: {file} not found, skipping")
+            print("Warning: file not found, skipping")
             continue
 
-        print(f"Uploading primary module {file}...")
-        if not run_mpremote(port_arg + ["cp", str(src), dst]):
-            print(f"Failed to upload {file}")
+        ret, stderr = run_mpremote(port_arg + ["cp", str(src), dst])
+        if not ret:
+            print(f"File not uploaded: {stderr.strip()}")
             return False
 
     print("✓ Primary modules deployed")
@@ -151,13 +152,14 @@ def deploy_tests(port_arg):
     for file in test_files:
         src = root / file
         dst = f":{file}"
+        print(f"Uploading test script {file}...")
         if not src.exists():
-            print(f"Warning: {file} not found, skipping")
+            print("Warning: file not found, skipping")
             continue
 
-        print(f"Uploading test script {file}...")
-        if not run_mpremote(port_arg + ["cp", str(src), dst]):
-            print(f"Failed to upload {file}")
+        ret, stderr = run_mpremote(port_arg + ["cp", str(src), dst])
+        if not ret:
+            print(f"File not uploaded: {stderr.strip()}")
             return False
 
     print("✓ Test scripts deployed")
@@ -169,12 +171,14 @@ def install_libraries(port_arg):
     print("\n=== Installing required libraries ===")
 
     for lib in libs:
-        if run_mpremote(port_arg + ["ls", f"lib/{lib}"]):
-            print(f"Library {lib} already installed, skipping")
-            continue
         print(f"Installing {lib}...")
-        if not run_mpremote(port_arg + ["mip", "install", lib]):
-            print(f"Failed to install {lib}")
+        ret, stderr = run_mpremote(port_arg + ["ls", f"lib/{lib}"], verbose=False)
+        if ret:
+            print("Library already installed, skipping")
+            continue  # Directory exists
+        ret, stderr = run_mpremote(port_arg + ["mip", "install", lib])
+        if not ret:
+            print(f"Library not installed: {stderr.strip()}")
             return False 
 
     print("✓ Libraries installed")
@@ -194,22 +198,30 @@ def clean_device(port_arg):
     # Remove test files
     for t in test_files:
         print(f"Removing test file {t}...")
-        run_mpremote(port_arg + ["rm", t], verbose=False)
+        ret, stderr = run_mpremote(port_arg + ["rm", t], verbose=False)
+        if not ret:
+            print(f"File not removed: {stderr.strip()}")
 
     # Remove primary files
     for p in primary_files:
         print(f"Removing primary file {p}...")
-        run_mpremote(port_arg + ["rm", p], verbose=False)
+        ret, stderr = run_mpremote(port_arg + ["rm", p], verbose=False)
+        if not ret:
+            print(f"File not removed: {stderr.strip()}")
 
     # Remove utility files
     for u in utility_files:
         print(f"Removing utility file {u}...")
-        run_mpremote(port_arg + ["rm", u], verbose=False)
+        ret, stderr = run_mpremote(port_arg + ["rm", u], verbose=False)
+        if not ret:
+            print(f"File not removed: {stderr.strip()}")
 
     # Remove common directories
     for d in dirs_to_remove:
         print(f"Removing directory {d}...")
-        run_mpremote(port_arg + ["rm", "-rf", d], verbose=False)
+        ret, stderr = run_mpremote(port_arg + ["rm", "-rf", d], verbose=False)
+        if not ret:
+            print(f"Directory not removed: {stderr.strip()}")
 
     print("✓ Device cleaned")
     return True
@@ -257,13 +269,14 @@ def main():
 
     # Create directories
     for d in dirs_to_create:
-        if run_mpremote(port_arg + ["ls", d]):
-            print(f"Directory {d} already exists, skipping creation")
-            continue
         print(f"Creating directory {d}...")
-        if not run_mpremote(port_arg + ["mkdir", f":{d}"]):
-            print("\n✗ Directory creation failed")
-            sys.exit(1)
+        ret, stderr = run_mpremote(port_arg + ["ls", d], verbose=False)
+        if ret:
+            print("Directory already exists, skipping")
+            continue  # Directory exists
+        ret, stderr = run_mpremote(port_arg + ["mkdir", f":{d}"])
+        if not ret:
+            print(f"Directory creation failed: {stderr.strip()}")
     print("✓ Directories created")
 
     success = True
