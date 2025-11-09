@@ -18,7 +18,7 @@ This project creates a wireless bridge between an Xbox Wireless Controller and a
 - **Control Modes:** Normal, Turbo, and Slow modes with configurable speed limits
 - **Smart Input Curves:** Exponential control curves for smooth, precise control
 - **Light Control:** Toggle lights on and off
-- **Motor Control:** Dual motor drive with steering, brake, and boost
+- **Motor Control:** Gas/brake pedal control with steering and forward/reverse direction toggle
 - **Auto-Recovery:** Bonding data management ensures reliable reconnections
 - **Comprehensive Testing:** Test scripts validating all functionality
 - **Well Documented:** Complete design spec, testing guides, and API documentation
@@ -187,18 +187,17 @@ esp32-xbox-lego-rc-upython/
 
 | Xbox Input | LEGO Function |
 |------------|---------------|
-| Left Stick Y | Forward/Backward (Motor A) |
+| Right Trigger | Gas Pedal (accelerator) |
+| Left Trigger | Brake Pedal |
 | Right Stick X | Left/Right Steering (Motor B) |
-| Left Trigger | Brake (reduces speed) |
-| Right Trigger | Boost (increases speed) |
+| Left Stick | *(Reserved)* |
+| Right Bumper (RB) | Increase Speed Limit |
+| Left Bumper (LB) | Decrease Speed Limit |
 | A Button | Toggle Lights |
-| B Button | *(Reserved)* |
-| X Button | Emergency Stop |
+| B Button | Toggle Direction (Forward/Reverse) |
+| X Button | *(Reserved)* |
 | Y Button | *(Reserved)* |
-| LB Button | Cycle Control Mode |
-| RB Button | *(Reserved)* |
-| D-pad Up | Increase Speed Limit |
-| D-pad Down | Decrease Speed Limit |
+| D-pad | *(Reserved)* |
 | Menu Button | *(Reserved)* |
 | View Button | *(Reserved)* |
 

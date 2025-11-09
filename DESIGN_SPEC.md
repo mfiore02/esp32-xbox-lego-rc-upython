@@ -271,14 +271,19 @@ def apply_calibration(calibration: dict)
 ```
 
 **Control Mapping (Default):**
-- Left Stick Y → Throttle (forward/reverse)
+- Right Trigger → Gas pedal (accelerator)
+- Left Trigger → Brake pedal
 - Right Stick X → Steering angle
-- Left Trigger → Brake (reduces speed)
-- Right Trigger → Boost (increases speed)
+- Left Stick → (Reserved)
+- Right Bumper (RB) → Increase speed limit
+- Left Bumper (LB) → Decrease speed limit
 - A Button → Toggle lights
-- X Button → Emergency stop
-- LB Button → Cycle control mode
-- D-pad Up/Down → Adjust speed limit
+- B Button → Toggle direction (forward/reverse)
+- X Button → (Reserved)
+- Y Button → (Reserved)
+- D-pad → (Reserved)
+- Menu → (Reserved)
+- View → (Reserved)
 
 #### 4.1.5 Display Manager (`display_manager.py`)
 **Responsibilities:**

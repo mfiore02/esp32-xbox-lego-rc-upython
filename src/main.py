@@ -102,19 +102,21 @@ class RCCarController:
     def _print_controls(self):
         """Print control scheme."""
         print("CONTROLS:")
-        print("  Left Stick Y    : Forward/Backward")
-        print("  Right Stick X   : Left/Right Steering")
-        print("  Left Trigger    : Brake")
-        print("  Right Trigger   : Boost")
+        print("  Right Trigger   : Gas Pedal")
+        print("  Left Trigger    : Brake Pedal")
+        print("  Right Stick X   : Steering")
+        print("  Left Stick      : (Reserved)")
+        print("  Right Bumper    : Increase Speed Limit")
+        print("  Left Bumper     : Decrease Speed Limit")
         print("  A Button        : Toggle Lights")
-        print("  B Button        : (Reserved)")
-        print("  X Button        : Emergency Stop")
+        print("  B Button        : Toggle Direction (Forward/Reverse)")
+        print("  X Button        : (Reserved)")
         print("  Y Button        : (Reserved)")
-        print("  LB Button       : Cycle Control Mode")
-        print("  RB Button       : (Reserved)")
-        print("  D-pad Up/Down   : Adjust Speed Limit")
+        print("  D-pad           : (Reserved)")
+        print("  Menu            : (Reserved)")
+        print("  View            : (Reserved)")
         print()
-        print("Current mode: NORMAL")
+        print("Direction: FORWARD")
         print("Speed limit: 100%")
         print()
 
@@ -177,11 +179,9 @@ class RCCarController:
                 if not await self.check_connections():
                     print("Connection check failed - stopping")
                     break
-                
-                if self.cmd.emergency_stop:
-                    await lego_client.drive(0, 0, LIGHTS_OFF)
-                else:
-                    await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.lights)
+
+                # Send drive command with current motor speeds and lights
+                await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.lights)
 
                 await asyncio.sleep_ms(10)  # Give some time to other tasks
         except KeyboardInterrupt:

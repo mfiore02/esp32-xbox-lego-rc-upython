@@ -39,45 +39,58 @@ def test_neutral_state():
     assert cmd.motor_a_speed == 0, f"Expected motor_a=0, got {cmd.motor_a_speed}"
     assert cmd.motor_b_speed == 0, f"Expected motor_b=0, got {cmd.motor_b_speed}"
     assert cmd.lights == LIGHTS_OFF, f"Expected lights off ({LIGHTS_OFF}), got {cmd.lights}"
-    assert not cmd.emergency_stop, "Unexpected emergency stop"
 
     print("✓ PASSED: Neutral state produces zero output")
     return True
 
 
 def test_forward_backward():
-    """Test forward and backward movement (left stick Y-axis)."""
+    """Test forward and backward movement (gas pedal + direction toggle)."""
     print("\n" + "="*60)
     print("TEST: Forward and Backward Movement")
     print("="*60)
 
     translator = InputTranslator()
 
-    # Test forward (positive Y)
+    # Test forward with gas pedal (default direction is forward)
     state = create_neutral_state()
-    state.left_stick_y = 1.0  # Full forward
+    state.right_trigger = 1.0  # Full gas
 
     cmd = translator.translate(state)
-    print(f"Input: Left stick Y = 1.0 (forward)")
+    print(f"Input: Right trigger = 1.0 (full gas, forward direction)")
     print(f"Output: motor_a = {cmd.motor_a_speed}")
 
     assert cmd.motor_a_speed == 100, f"Expected motor_a=100, got {cmd.motor_a_speed}"
     assert cmd.motor_b_speed == 0, f"Expected motor_b=0, got {cmd.motor_b_speed}"
 
-    # Test backward (negative Y)
-    state.left_stick_y = -1.0  # Full backward
+    # Toggle to reverse direction
+    state.right_trigger = 0.0  # Release gas
+    state.button_b = True
+    translator.translate(state)  # Process button press
+    state.button_b = False
+    translator.translate(state)  # Update button state
+
+    # Test backward (gas pedal in reverse direction)
+    state.right_trigger = 1.0  # Full gas in reverse
 
     cmd = translator.translate(state)
-    print(f"Input: Left stick Y = -1.0 (backward)")
+    print(f"Input: Right trigger = 1.0 (full gas, reverse direction)")
     print(f"Output: motor_a = {cmd.motor_a_speed}")
 
     assert cmd.motor_a_speed == -100, f"Expected motor_a=-100, got {cmd.motor_a_speed}"
 
-    # Test partial forward (should apply curve)
-    state.left_stick_y = 0.5  # Half forward
+    # Toggle back to forward
+    state.right_trigger = 0.0
+    state.button_b = True
+    translator.translate(state)
+    state.button_b = False
+    translator.translate(state)
+
+    # Test partial gas (should apply curve)
+    state.right_trigger = 0.5  # Half gas
 
     cmd = translator.translate(state)
-    print(f"Input: Left stick Y = 0.5 (half forward)")
+    print(f"Input: Right trigger = 0.5 (half gas)")
     print(f"Output: motor_a = {cmd.motor_a_speed}")
 
     # With quadratic curve (power=2.0), 0.5^2 = 0.25, so expect 25% speed
@@ -119,47 +132,58 @@ def test_steering():
     return True
 
 
-def test_brake_and_boost():
-    """Test brake (left trigger) and boost (right trigger) modifiers."""
+def test_gas_and_brake():
+    """Test gas pedal (right trigger) and brake pedal (left trigger)."""
     print("\n" + "="*60)
-    print("TEST: Brake and Boost")
+    print("TEST: Gas and Brake Pedals")
     print("="*60)
 
     translator = InputTranslator()
 
-    # Test normal forward
+    # Test gas pedal only
     state = create_neutral_state()
-    state.left_stick_y = 1.0
-    cmd_normal = translator.translate(state)
-    normal_speed = cmd_normal.motor_a_speed
+    state.right_trigger = 1.0  # Full gas
+    cmd_gas = translator.translate(state)
+    gas_speed = cmd_gas.motor_a_speed
 
-    print(f"Normal forward speed: {normal_speed}")
+    print(f"Full gas pedal: {gas_speed}")
+    assert gas_speed == 100, f"Expected 100, got {gas_speed}"
 
-    # Test with brake
+    # Test brake pedal only (negative drive input)
+    state.right_trigger = 0.0  # No gas
     state.left_trigger = 1.0  # Full brake
     cmd_brake = translator.translate(state)
     brake_speed = cmd_brake.motor_a_speed
 
-    print(f"With full brake: {brake_speed}")
-    assert brake_speed < normal_speed, "Brake should reduce speed"
-    assert brake_speed >= normal_speed * 0.2, "Brake shouldn't reduce below 20%"
+    print(f"Full brake pedal: {brake_speed}")
+    assert brake_speed == -100, f"Expected -100, got {brake_speed}"
 
-    # Test with boost
+    # Test brake takes priority when both pressed
+    state.right_trigger = 1.0  # Full gas
+    state.left_trigger = 1.0  # Full brake
+    cmd_both = translator.translate(state)
+    both_speed = cmd_both.motor_a_speed
+
+    print(f"Both pedals pressed (brake priority): {both_speed}")
+    assert both_speed == -100, "Brake should take priority over gas"
+
+    # Test partial gas
     state.left_trigger = 0.0  # No brake
-    state.right_trigger = 1.0  # Full boost
-    cmd_boost = translator.translate(state)
-    boost_speed = cmd_boost.motor_a_speed
+    state.right_trigger = 0.5  # Half gas
+    cmd_half_gas = translator.translate(state)
+    print(f"Half gas: {cmd_half_gas.motor_a_speed}")
+    # With quadratic curve (power=2.0), 0.5^2 = 0.25, so expect 25% speed
+    assert 20 <= cmd_half_gas.motor_a_speed <= 30, f"Expected ~25, got {cmd_half_gas.motor_a_speed}"
 
-    print(f"With full boost: {boost_speed}")
-    # Boost adds up to 50%, but can't exceed 100
-    assert boost_speed == 100, f"Expected 100 (capped), got {boost_speed}"
+    # Test partial brake
+    state.right_trigger = 0.0  # No gas
+    state.left_trigger = 0.5  # Half brake
+    cmd_half_brake = translator.translate(state)
+    print(f"Half brake: {cmd_half_brake.motor_a_speed}")
+    # With quadratic curve, -0.5^2 = -0.25, so expect -25% speed
+    assert -30 <= cmd_half_brake.motor_a_speed <= -20, f"Expected ~-25, got {cmd_half_brake.motor_a_speed}"
 
-    # Test boost with lower initial speed
-    state.left_stick_y = 0.5  # Half forward
-    cmd_boost_half = translator.translate(state)
-    print(f"Half forward with boost: {cmd_boost_half.motor_a_speed}")
-
-    print("✓ PASSED: Brake and boost work correctly")
+    print("✓ PASSED: Gas and brake pedals work correctly")
     return True
 
 
@@ -171,17 +195,17 @@ def test_control_modes():
 
     translator = InputTranslator()
     state = create_neutral_state()
-    state.left_stick_y = 0.5  # Half stick
+    state.right_trigger = 0.5  # Half gas
 
     # Test normal mode
     translator.set_mode(ControlMode.NORMAL)
     cmd_normal = translator.translate(state)
-    print(f"Normal mode (0.5 input): motor_a = {cmd_normal.motor_a_speed}")
+    print(f"Normal mode (0.5 gas): motor_a = {cmd_normal.motor_a_speed}")
 
     # Test turbo mode (more linear, less curve)
     translator.set_mode(ControlMode.TURBO)
     cmd_turbo = translator.translate(state)
-    print(f"Turbo mode (0.5 input): motor_a = {cmd_turbo.motor_a_speed}")
+    print(f"Turbo mode (0.5 gas): motor_a = {cmd_turbo.motor_a_speed}")
 
     # Turbo should give higher speed for same input (power=1.5 vs 2.0)
     assert cmd_turbo.motor_a_speed > cmd_normal.motor_a_speed, \
@@ -189,9 +213,9 @@ def test_control_modes():
 
     # Test slow mode (lower max speed)
     translator.set_mode(ControlMode.SLOW)
-    state.left_stick_y = 1.0  # Full stick
+    state.right_trigger = 1.0  # Full gas
     cmd_slow = translator.translate(state)
-    print(f"Slow mode (full input): motor_a = {cmd_slow.motor_a_speed}")
+    print(f"Slow mode (full gas): motor_a = {cmd_slow.motor_a_speed}")
 
     # Slow mode caps at 50%
     assert cmd_slow.motor_a_speed <= 50, "Slow mode should cap at 50%"
@@ -210,27 +234,48 @@ def test_control_modes():
 
 
 def test_speed_limit():
-    """Test user-adjustable speed limit."""
+    """Test user-adjustable speed limit with bumpers."""
     print("\n" + "="*60)
     print("TEST: Speed Limit")
     print("="*60)
 
     translator = InputTranslator()
     state = create_neutral_state()
-    state.left_stick_y = 1.0  # Full forward
+    state.right_trigger = 1.0  # Full gas
 
     # Test with default limit (100%)
     cmd_full = translator.translate(state)
     print(f"Default limit (100%): motor_a = {cmd_full.motor_a_speed}")
     assert cmd_full.motor_a_speed == 100
 
-    # Reduce speed limit
-    translator.adjust_speed_limit(-30)  # Down to 70%
+    # Reduce speed limit with left bumper (LB decreases)
+    state.button_lb = True
+    translator.translate(state)  # -10%
+    state.button_lb = False
+    translator.translate(state)
+    state.button_lb = True
+    translator.translate(state)  # -10%
+    state.button_lb = False
+    translator.translate(state)
+    state.button_lb = True
+    translator.translate(state)  # -10%
+    state.button_lb = False
+    translator.translate(state)
+
+    # Should be at 70%
     cmd_limited = translator.translate(state)
-    print(f"With 70% limit: motor_a = {cmd_limited.motor_a_speed}")
+    print(f"After 3x LB press (70% limit): motor_a = {cmd_limited.motor_a_speed}")
     assert cmd_limited.motor_a_speed == 70
 
-    # Test limit boundaries
+    # Increase speed limit with right bumper (RB increases)
+    state.button_rb = True
+    translator.translate(state)  # +10%
+    state.button_rb = False
+    cmd_increased = translator.translate(state)
+    print(f"After 1x RB press (80% limit): motor_a = {cmd_increased.motor_a_speed}")
+    assert cmd_increased.motor_a_speed == 80
+
+    # Test limit boundaries using direct method
     translator.adjust_speed_limit(-100)  # Should clamp to 0
     assert translator.max_speed_limit == 0
 
@@ -241,37 +286,65 @@ def test_speed_limit():
     return True
 
 
-def test_emergency_stop():
-    """Test emergency stop (X button)."""
+def test_direction_toggle():
+    """Test direction toggle (B button)."""
     print("\n" + "="*60)
-    print("TEST: Emergency Stop")
+    print("TEST: Direction Toggle")
     print("="*60)
 
     translator = InputTranslator()
 
-    # Set up driving state
+    # Initial direction should be forward (1)
+    assert translator.direction == 1, "Initial direction should be forward (1)"
+    print("Initial direction: FORWARD (1)")
+
+    # Set up driving state with gas
     state = create_neutral_state()
-    state.left_stick_y = 1.0
-    state.right_stick_x = 0.5
+    state.right_trigger = 1.0  # Full gas
 
-    # First call without X button
+    # First call in forward direction
     cmd1 = translator.translate(state)
-    print(f"Before E-stop: {cmd1}")
-    assert not cmd1.emergency_stop
+    print(f"Forward: motor_a = {cmd1.motor_a_speed}")
+    assert cmd1.motor_a_speed == 100, "Should be positive in forward"
 
-    # Press X button
-    state.button_x = True
+    # Press B button to toggle to reverse
+    state.button_b = True
     cmd2 = translator.translate(state)
-    print(f"With X pressed: {cmd2}")
-    assert cmd2.emergency_stop, "Should trigger emergency stop"
+    state.button_b = False
+    translator.translate(state)  # Update button state
 
-    # Release X button (should not trigger again)
-    state.button_x = False
+    # Check direction changed to reverse
+    assert translator.direction == -1, "Direction should be reverse (-1)"
+    print("After B press: REVERSE (-1)")
+
+    # Test with gas in reverse
     cmd3 = translator.translate(state)
-    print(f"After X released: {cmd3}")
-    assert not cmd3.emergency_stop, "Should not trigger on button release"
+    print(f"Reverse: motor_a = {cmd3.motor_a_speed}")
+    assert cmd3.motor_a_speed == -100, "Should be negative in reverse"
 
-    print("✓ PASSED: Emergency stop works correctly")
+    # Press B button again to toggle back to forward
+    state.button_b = True
+    translator.translate(state)
+    state.button_b = False
+    translator.translate(state)
+
+    # Check direction changed back to forward
+    assert translator.direction == 1, "Direction should be forward (1) again"
+    print("After second B press: FORWARD (1)")
+
+    # Test with gas in forward again
+    cmd4 = translator.translate(state)
+    print(f"Forward again: motor_a = {cmd4.motor_a_speed}")
+    assert cmd4.motor_a_speed == 100, "Should be positive in forward"
+
+    # Verify edge detection (holding B doesn't toggle repeatedly)
+    state.button_b = True
+    translator.translate(state)  # First press toggles
+    initial_direction = translator.direction
+    translator.translate(state)  # Holding doesn't toggle
+    assert translator.direction == initial_direction, "Holding B shouldn't toggle"
+
+    print("✓ PASSED: Direction toggle works correctly")
     return True
 
 
@@ -330,30 +403,30 @@ def test_button_edge_detection():
     translator = InputTranslator()
     state = create_neutral_state()
 
-    # Press and hold LB (mode cycle)
-    initial_mode = translator.mode
-    state.button_lb = True
+    # Press and hold RB (speed limit increase)
+    initial_limit = translator.max_speed_limit
+    state.button_rb = True
 
     cmd1 = translator.translate(state)
-    mode_after_first = translator.mode
-    print(f"After first translate with LB held: {mode_after_first}")
-    assert mode_after_first != initial_mode, "Should cycle on first press"
+    limit_after_first = translator.max_speed_limit
+    print(f"After first translate with RB held: {limit_after_first}")
+    assert limit_after_first == initial_limit + 10, "Should increase by 10 on first press"
 
-    # Keep holding LB (should NOT cycle again)
+    # Keep holding RB (should NOT increase again)
     cmd2 = translator.translate(state)
-    mode_after_second = translator.mode
-    print(f"After second translate with LB still held: {mode_after_second}")
-    assert mode_after_second == mode_after_first, "Should not cycle while held"
+    limit_after_second = translator.max_speed_limit
+    print(f"After second translate with RB still held: {limit_after_second}")
+    assert limit_after_second == limit_after_first, "Should not increase while held"
 
-    # Release and press again (should cycle)
-    state.button_lb = False
+    # Release and press again (should increase)
+    state.button_rb = False
     translator.translate(state)  # Update state
 
-    state.button_lb = True
+    state.button_rb = True
     cmd3 = translator.translate(state)
-    mode_after_third = translator.mode
-    print(f"After releasing and pressing LB again: {mode_after_third}")
-    assert mode_after_third != mode_after_second, "Should cycle on new press"
+    limit_after_third = translator.max_speed_limit
+    print(f"After releasing and pressing RB again: {limit_after_third}")
+    assert limit_after_third == limit_after_second + 10, "Should increase by 10 on new press"
 
     print("✓ PASSED: Button edge detection works correctly")
     return True
@@ -368,16 +441,14 @@ def test_combined_inputs():
     translator = InputTranslator()
     state = create_neutral_state()
 
-    # Drive forward while turning right with boost
-    state.left_stick_y = 0.7   # 70% forward
+    # Drive forward while turning right with gas pedal
+    state.right_trigger = 0.7  # 70% gas
     state.right_stick_x = 0.5  # 50% right
-    state.right_trigger = 0.5  # 50% boost
 
     cmd = translator.translate(state)
     print(f"Combined input:")
-    print(f"  Left stick Y: 0.7 (forward)")
+    print(f"  Right trigger: 0.7 (gas)")
     print(f"  Right stick X: 0.5 (right)")
-    print(f"  Right trigger: 0.5 (boost)")
     print(f"Output:")
     print(f"  Motor A: {cmd.motor_a_speed}")
     print(f"  Motor B: {cmd.motor_b_speed}")
@@ -407,12 +478,17 @@ def test_status_reporting():
     assert 'max_speed_limit' in status
     assert 'lights_on' in status
     assert 'brake_lights_on' in status
+    assert 'direction' in status
+
+    # Check initial direction
+    assert status['direction'] == 'forward', "Initial direction should be forward"
 
     # Change some settings
     translator.set_mode(ControlMode.TURBO)
     translator.adjust_speed_limit(-20)
     translator.lights_on = True
     translator.brake_lights_on = True
+    translator.direction = -1  # Set to reverse
 
     status = translator.get_status()
     print(f"Updated status: {status}")
@@ -421,6 +497,7 @@ def test_status_reporting():
     assert status['max_speed_limit'] == 80
     assert status['lights_on'] == True
     assert status['brake_lights_on'] == True
+    assert status['direction'] == 'reverse', "Direction should be reverse"
 
     print("✓ PASSED: Status reporting works correctly")
     return True
@@ -436,10 +513,10 @@ def run_all_tests():
         ("Neutral State", test_neutral_state),
         ("Forward/Backward", test_forward_backward),
         ("Steering", test_steering),
-        ("Brake and Boost", test_brake_and_boost),
+        ("Gas and Brake", test_gas_and_brake),
         ("Control Modes", test_control_modes),
         ("Speed Limit", test_speed_limit),
-        ("Emergency Stop", test_emergency_stop),
+        ("Direction Toggle", test_direction_toggle),
         ("LED Control", test_lights),
         ("Button Edge Detection", test_button_edge_detection),
         ("Combined Inputs", test_combined_inputs),
@@ -496,9 +573,9 @@ def steering():
     """Quick test: steering"""
     return test_steering()
 
-def brake_boost():
-    """Quick test: brake and boost"""
-    return test_brake_and_boost()
+def gas_brake():
+    """Quick test: gas and brake pedals"""
+    return test_gas_and_brake()
 
 def modes():
     """Quick test: control modes"""
@@ -508,9 +585,9 @@ def speed_limit():
     """Quick test: speed limit"""
     return test_speed_limit()
 
-def emergency():
-    """Quick test: emergency stop"""
-    return test_emergency_stop()
+def direction():
+    """Quick test: direction toggle"""
+    return test_direction_toggle()
 
 def leds():
     """Quick test: light control"""

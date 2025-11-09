@@ -5,20 +5,19 @@ Converts Xbox controller state (buttons, sticks, triggers) into motor speed
 and lighting commands for LEGO Technic Hub.
 
 Control Scheme:
-- Left Stick Y-axis: Forward/backward speed (motor A)
+- Right Trigger: Gas pedal (accelerator)
+- Left Trigger: Brake pedal
 - Right Stick X-axis: Left/right steering (motor B)
-- Left Trigger: Brake (reduces all motor speeds)
-- Right Trigger: Boost (increases motor speeds)
+- Left Stick: (Reserved)
+- Right Bumper: Increase speed limit
+- Left Bumper: Decrease speed limit
 - A button: Toggle lights
-- B button: (Reserved for future use)
-- X button: Emergency stop (all motors to 0)
-- Y button: (Reserved for future use)
-- D-pad Up: Increase max speed limit
-- D-pad Down: Decrease max speed limit
-- LB: Cycle control mode (normal -> turbo -> slow)
-- RB: (Reserved for future use)
-- Menu: (Reserved for future use)
-- View: (Reserved for future use)
+- B button: Toggle direction (forward/reverse)
+- X button: (Reserved)
+- Y button: (Reserved)
+- D-pad: (Reserved)
+- Menu: (Reserved)
+- View: (Reserved)
 
 Control Modes:
 - Normal: Standard responsiveness and speed limits
@@ -91,19 +90,20 @@ class InputTranslator:
         """Initialize translator with default settings."""
         self.mode = ControlMode.NORMAL
         self.max_speed_limit = 100  # User-adjustable limit (0-100)
-        self.speed_limit_step = 10  # Amount to change per D-pad press
+        self.speed_limit_step = 10  # Amount to change per bumper press
 
         # State tracking for button presses (to detect edges)
         self._prev_button_a = False
         self._prev_button_b = False
-        self._prev_button_x = False
+        self._prev_button_rb = False
         self._prev_button_lb = False
-        self._prev_dpad_up = False
-        self._prev_dpad_down = False
 
         # LED state tracking
         self.lights_on = False
         self.brake_lights_on = False
+
+        # Direction state (forward = 1, reverse = -1)
+        self.direction = 1
 
     def set_mode(self, mode: str):
         """
@@ -193,21 +193,16 @@ class InputTranslator:
         """
         cmd = VehicleCommand()
 
-        # Handle emergency stop (X button)
-        if self._handle_button_press(state.button_x, self._prev_button_x):
-            print("EMERGENCY STOP")
-            cmd.emergency_stop = True
-            self._update_button_state(state)
-            return cmd
+        # Handle direction toggle (B button)
+        if self._handle_button_press(state.button_b, self._prev_button_b):
+            self.direction *= -1  # Toggle between 1 and -1
+            direction_text = "FORWARD" if self.direction == 1 else "REVERSE"
+            print(f"Direction: {direction_text}")
 
-        # Handle mode cycling (LB button)
-        if self._handle_button_press(state.button_lb, self._prev_button_lb):
-            self.cycle_mode()
-
-        # Handle speed limit adjustment (D-pad up/down)
-        if self._handle_button_press(state.dpad_up, self._prev_dpad_up):
+        # Handle speed limit adjustment (bumpers)
+        if self._handle_button_press(state.button_rb, self._prev_button_rb):
             self.adjust_speed_limit(self.speed_limit_step)
-        if self._handle_button_press(state.dpad_down, self._prev_dpad_down):
+        if self._handle_button_press(state.button_lb, self._prev_button_lb):
             self.adjust_speed_limit(-self.speed_limit_step)
 
         # Handle lights (A button)
@@ -222,39 +217,40 @@ class InputTranslator:
         # Calculate effective max speed (mode limit AND user limit)
         effective_max_speed = min(mode_max_speed, self.max_speed_limit)
 
-        # Get stick inputs
-        drive_input = state.left_stick_y  # Forward/backward
-        steer_input = state.right_stick_x  # Left/right
+        # Get trigger inputs (gas and brake pedals)
+        gas_pedal = state.right_trigger  # 0.0 to 1.0
+        brake_pedal = state.left_trigger  # 0.0 to 1.0
 
-        # Apply control curves
+        # Get steering from right stick X-axis
+        steer_input = state.right_stick_x  # -1.0 to 1.0
+
+        # Calculate drive input from gas and brake
+        # Gas pedal = positive drive, brake = negative drive
+        # When both pressed, brake takes priority
+        if brake_pedal > 0.0:
+            # Braking - apply brake amount as negative drive
+            drive_input = -brake_pedal
+        else:
+            # Accelerating - apply gas amount as positive drive
+            drive_input = gas_pedal
+
+        # Apply control curves for smooth response
         drive_curved = self._apply_control_curve(drive_input, curve_power)
         steer_curved = self._apply_control_curve(steer_input, curve_power)
 
-        # Apply trigger modifiers
-        brake_amount = state.left_trigger  # 0.0 to 1.0
-        boost_amount = state.right_trigger  # 0.0 to 1.0
-
-        # Brake reduces speed (0.0 = no brake, 1.0 = full brake)
-        # When fully braking, reduce to 20% of intended speed
-        brake_multiplier = 1.0 - (brake_amount * 0.8)
-
-        # Boost increases speed (0.0 = no boost, 1.0 = +50% speed)
-        # But can't exceed 100% motor speed
-        boost_multiplier = 1.0 + (boost_amount * 0.5)
-
-        # Combine modifiers (brake takes priority)
-        speed_multiplier = brake_multiplier * boost_multiplier
+        # Apply direction multiplier (forward = 1, reverse = -1)
+        drive_with_direction = drive_curved * self.direction
 
         # Calculate final motor speeds
-        drive_scaled = drive_curved * speed_multiplier
-        steer_scaled = steer_curved
-
-        cmd.motor_a_speed = self._scale_to_motor_speed(drive_scaled, effective_max_speed)
-        cmd.motor_b_speed = self._scale_to_motor_speed(steer_scaled, 100)  # Steering not limited by speed limit
+        cmd.motor_a_speed = self._scale_to_motor_speed(drive_with_direction, effective_max_speed)
+        cmd.motor_b_speed = self._scale_to_motor_speed(steer_curved, 100)  # Steering not limited by speed limit
 
         # Update LED state
-        cmd.lights = LIGHTS_ON if self.lights_on else LIGHTS_OFF
-        # TODO: handle brake lights
+        # Show brake lights when brake pedal is pressed
+        if brake_pedal > 0.1:  # Small threshold to avoid noise
+            cmd.lights = LIGHTS_BRAKE if self.lights_on else LIGHTS_BRAKE
+        else:
+            cmd.lights = LIGHTS_ON if self.lights_on else LIGHTS_OFF
 
         # Update button state tracking
         self._update_button_state(state)
@@ -265,10 +261,8 @@ class InputTranslator:
         """Update previous button states for edge detection."""
         self._prev_button_a = state.button_a
         self._prev_button_b = state.button_b
-        self._prev_button_x = state.button_x
+        self._prev_button_rb = state.button_rb
         self._prev_button_lb = state.button_lb
-        self._prev_dpad_up = state.dpad_up
-        self._prev_dpad_down = state.dpad_down
 
     def get_status(self) -> dict:
         """
@@ -282,4 +276,5 @@ class InputTranslator:
             'max_speed_limit': self.max_speed_limit,
             'lights_on': self.lights_on,
             'brake_lights_on': self.brake_lights_on,
+            'direction': 'forward' if self.direction == 1 else 'reverse',
         }
