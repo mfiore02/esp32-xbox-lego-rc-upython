@@ -27,15 +27,26 @@ class RCCarController:
     Main RC car controller integrating BLE and input translation.
     """
 
-    def __init__(self, dead_zone: float = 0.03):
+    def __init__(self, dead_zone: float = 0.03,
+                 max_drive_speed_change_per_update: float | None = None,
+                 max_steer_speed_change_per_update: float | None = None):
         """
         Initialize RC car controller.
 
         Args:
             dead_zone: Dead zone for analog stick inputs (0.0 to 1.0)
+            max_drive_speed_change_per_update: Maximum drive motor speed change per update (0-100 scale).
+                                               Controls drive ramping/acceleration. Set to None for instant response.
+                                               Adjustable via D-pad Up/Down during runtime.
+            max_steer_speed_change_per_update: Maximum steering motor speed change per update (0-100 scale).
+                                               Controls steering ramping. Set to None for instant response.
+                                               Adjustable via D-pad Left/Right during runtime.
         """
         self.ble_manager = BLEManager(dead_zone=dead_zone)
-        self.translator = InputTranslator()
+        self.translator = InputTranslator(
+            max_drive_speed_change_per_update=max_drive_speed_change_per_update,
+            max_steer_speed_change_per_update=max_steer_speed_change_per_update
+        )
         self.running = False
         self.cmd = VehicleCommand()
         self.connection_check_interval_ms = 5000  # Check connections every 5 seconds
@@ -112,7 +123,8 @@ class RCCarController:
         print("  B Button        : Toggle Direction (Forward/Reverse)")
         print("  X Button        : (Reserved)")
         print("  Y Button        : (Reserved)")
-        print("  D-pad           : (Reserved)")
+        print("  D-pad Up/Down   : Adjust Drive Ramping (Acceleration)")
+        print("  D-pad Left/Right: Adjust Steering Ramping")
         print("  Menu            : (Reserved)")
         print("  View            : (Reserved)")
         print()
@@ -236,35 +248,63 @@ class RCCarController:
 _controller = None
 
 
-async def start(dead_zone: float = 0.03):
+async def start(dead_zone: float = 0.03,
+                max_drive_speed_change_per_update: float | None = None,
+                max_steer_speed_change_per_update: float | None = None):
     """
     Start the RC car controller.
 
     Args:
         dead_zone: Dead zone for analog stick inputs
+        max_drive_speed_change_per_update: Maximum drive motor speed change per update (0-100 scale).
+                                          Controls drive ramping. Set to None for instant response.
+                                          Adjustable via D-pad Up/Down during runtime.
+        max_steer_speed_change_per_update: Maximum steering motor speed change per update (0-100 scale).
+                                          Controls steering ramping. Set to None for instant response.
+                                          Adjustable via D-pad Left/Right during runtime.
 
     Usage:
         >>> import asyncio
         >>> import src.main as main
         >>> asyncio.run(main.start())
+        >>> # With ramping (5 units per 10ms update = 200ms to full speed)
+        >>> asyncio.run(main.start(max_drive_speed_change_per_update=5.0, max_steer_speed_change_per_update=10.0))
     """
     global _controller
-    _controller = RCCarController(dead_zone=dead_zone)
+    _controller = RCCarController(
+        dead_zone=dead_zone,
+        max_drive_speed_change_per_update=max_drive_speed_change_per_update,
+        max_steer_speed_change_per_update=max_steer_speed_change_per_update
+    )
     await _controller.run()
 
 
-def run(dead_zone: float = 0.03):
+def run(dead_zone: float = 0.03,
+        max_drive_speed_change_per_update: float | None = None,
+        max_steer_speed_change_per_update: float | None = None):
     """
     Convenience function to run the controller (handles asyncio setup).
 
     Args:
         dead_zone: Dead zone for analog stick inputs
+        max_drive_speed_change_per_update: Maximum drive motor speed change per update (0-100 scale).
+                                          Controls drive ramping. Set to None for instant response.
+                                          Adjustable via D-pad Up/Down during runtime.
+        max_steer_speed_change_per_update: Maximum steering motor speed change per update (0-100 scale).
+                                          Controls steering ramping. Set to None for instant response.
+                                          Adjustable via D-pad Left/Right during runtime.
 
     Usage from REPL:
         >>> import src.main as main
         >>> main.run()
+        >>> # With ramping (5 units per 10ms update = 200ms to full speed)
+        >>> main.run(max_drive_speed_change_per_update=5.0, max_steer_speed_change_per_update=10.0)
     """
-    asyncio.run(start(dead_zone=dead_zone))
+    asyncio.run(start(
+        dead_zone=dead_zone,
+        max_drive_speed_change_per_update=max_drive_speed_change_per_update,
+        max_steer_speed_change_per_update=max_steer_speed_change_per_update
+    ))
 
 
 async def quick_test():
