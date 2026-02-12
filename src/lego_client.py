@@ -40,6 +40,7 @@ class LegoClient:
         self.service = None
         self.characteristic = None
         self.connected = False
+        self._last_drive_args = None  # (speed, angle, lights) deduplication
 
         # Convert UUID strings to bluetooth.UUID objects
         self.service_uuid = bluetooth.UUID(LEGO_SERVICE_UUID)
@@ -154,6 +155,8 @@ class LegoClient:
 
         except Exception as e:
             print(f"Failed to send command: {e}")
+            # Back off to let BLE stack recover (especially after ENOMEM)
+            await asyncio.sleep_ms(50)
             return False
 
     async def drive(self, speed: int = 0, angle: int = 0, lights: int = LIGHTS_OFF):
@@ -173,6 +176,12 @@ class LegoClient:
         # Clamp values to valid ranges
         speed = max(-100, min(100, speed))
         angle = max(-100, min(100, angle))
+
+        # Skip if command is identical to the last one sent
+        args = (speed, angle, lights)
+        if args == self._last_drive_args:
+            return True
+        self._last_drive_args = args
 
         # Build drive command (from reference implementation)
         # Format: [0x0d, 0x00, 0x81, 0x36, 0x11, 0x51, 0x00, 0x03, 0x00, speed, angle, lights, 0x00]

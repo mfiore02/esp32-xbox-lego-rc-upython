@@ -195,7 +195,7 @@ class RCCarController:
                 # Send drive command with current motor speeds and lights
                 await lego_client.drive(self.cmd.motor_a_speed, self.cmd.motor_b_speed, self.cmd.lights)
 
-                await asyncio.sleep_ms(10)  # Give some time to other tasks
+                await asyncio.sleep_ms(50)  # ~20 Hz update rate
         except KeyboardInterrupt:
             print("\n\nStopping (Ctrl+C pressed)...")
         except Exception as e:

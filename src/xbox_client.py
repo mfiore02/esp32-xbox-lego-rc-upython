@@ -127,6 +127,7 @@ class XboxClient:
         self.hid_service = None
         self.report_characteristic = None
         self.connected = False
+        self._subscribed = False
         self.dead_zone = dead_zone
 
         # Current controller state
@@ -151,9 +152,22 @@ class XboxClient:
 
             # Connect to the device
             self.connection = await device.connect(timeout_ms=10000)
-            print("Connected! Discovering services...")
+            print("Connected!")
 
-            # Discover HID service
+            # Pair FIRST - before service discovery!
+            # The CCCD (Client Characteristic Configuration Descriptor) needed for
+            # subscribe/notifications is encrypted. Pairing establishes the encrypted
+            # link so that CCCD descriptors are properly discoverable.
+            try:
+                print("Pairing with Xbox controller...")
+                await self.connection.pair(bond=True)
+                print("Paired successfully!")
+            except Exception as e:
+                print(f"Pairing failed: {e}")
+                print("Warning: Controller may not send input data without pairing")
+
+            # Now discover services (after pairing, encrypted attributes are accessible)
+            print("Discovering services...")
             try:
                 self.hid_service = await self.connection.service(HID_SERVICE_UUID)
                 print(f"Found HID service: {HID_SERVICE_UUID}")
@@ -162,31 +176,8 @@ class XboxClient:
                 await self.disconnect()
                 return False
 
-            # Get HID Report characteristic
-            try:
-                self.report_characteristic = await self.hid_service.characteristic(
-                    HID_REPORT_CHAR_UUID
-                )
-                print(f"Found HID Report characteristic: {HID_REPORT_CHAR_UUID}")
-            except Exception as e:
-                print(f"Report characteristic discovery failed: {e}")
-                await self.disconnect()
-                return False
-
-            # Pair with the controller (required for it to send input data!)
-            # Without pairing, the controller stays in pairing mode and won't send HID reports
-            try:
-                print("Pairing with Xbox controller...")
-                await self.connection.pair(bond=True)
-                print("Paired successfully!")
-            except Exception as e:
-                print(f"Pairing failed: {e}")
-                print("Warning: Controller may not send input data without pairing")
-                # Don't fail here - try to continue anyway
-
-            # CRITICAL: Read the Report Map characteristic
-            # This is required to initialize the controller and enable HID notifications!
-            # Without this, the controller won't send any input data.
+            # Read the Report Map characteristic
+            # This is required to initialize the controller and enable HID notifications
             try:
                 print("Reading HID Report Map (required for initialization)...")
                 report_map_char = await self.hid_service.characteristic(HID_REPORT_MAP_UUID)
@@ -195,7 +186,14 @@ class XboxClient:
             except Exception as e:
                 print(f"Warning: Could not read Report Map: {e}")
                 print("Controller may not send input data without this!")
-                # Continue anyway, but it probably won't work
+
+            # Find the HID Report characteristic that supports notifications
+            # Xbox controllers have multiple 0x2A4D characteristics (input, output, feature)
+            # We need the one with a CCCD descriptor for notifications
+            if not await self._find_notify_characteristic():
+                print("Failed to find a subscribable HID Report characteristic")
+                await self.disconnect()
+                return False
 
             self.connected = True
             print("Xbox controller connected successfully!")
@@ -205,6 +203,59 @@ class XboxClient:
             print(f"Connection failed: {e}")
             self.connected = False
             return False
+
+    async def _find_notify_characteristic(self):
+        """
+        Find the HID Report characteristic that supports notifications and subscribe to it.
+
+        Xbox controllers expose multiple characteristics with UUID 0x2A4D
+        (input report, output report, feature report). Only the input report
+        characteristic supports notifications. This method tries each one
+        until it finds one that accepts subscribe(notify=True).
+
+        Returns:
+            True if a subscribable characteristic was found, False otherwise
+        """
+        print("Looking for HID Report characteristic with notification support...")
+
+        # Request the first characteristic - this triggers discovery of ALL
+        # characteristics on the service in aioble's internal cache
+        try:
+            first_char = await self.hid_service.characteristic(HID_REPORT_CHAR_UUID)
+        except Exception as e:
+            print(f"No HID Report characteristics found: {e}")
+            return False
+
+        if first_char is None:
+            print("No HID Report characteristics found")
+            return False
+
+        # Collect all characteristics with the HID Report UUID
+        # After the first characteristic() call, aioble caches all discovered
+        # characteristics in _characteristics
+        try:
+            candidates = [c for c in self.hid_service._characteristics
+                          if c.uuid == HID_REPORT_CHAR_UUID]
+        except AttributeError:
+            # Fallback if _characteristics isn't accessible
+            candidates = [first_char]
+
+        print(f"Found {len(candidates)} HID Report characteristic(s)")
+
+        # Try subscribing to each until we find one that works
+        for i, char in enumerate(candidates):
+            try:
+                print(f"  Trying characteristic {i + 1}/{len(candidates)}...")
+                await char.subscribe(notify=True)
+                self.report_characteristic = char
+                self._subscribed = True
+                print(f"  Success! Subscribed to characteristic {i + 1}")
+                return True
+            except Exception as e:
+                print(f"  Characteristic {i + 1} failed: {e}")
+
+        print("No characteristic accepted notifications")
+        return False
 
     async def disconnect(self):
         """Disconnect from the Xbox controller."""
@@ -219,6 +270,7 @@ class XboxClient:
         self.hid_service = None
         self.report_characteristic = None
         self.connected = False
+        self._subscribed = False
 
     def is_connected(self) -> bool:
         """Check if currently connected to the controller."""
@@ -336,11 +388,12 @@ class XboxClient:
         try:
             print("Starting input loop...")
 
-            # Subscribe to notifications from the HID report characteristic
-            # This enables the controller to send input data to us
-            print("Subscribing to HID notifications...")
-            await self.report_characteristic.subscribe(notify=True)
-            print("Subscribed! Waiting for input data...")
+            # Subscribe if not already subscribed during connect
+            if not self._subscribed:
+                print("Subscribing to HID notifications...")
+                await self.report_characteristic.subscribe(notify=True)
+                self._subscribed = True
+            print("Waiting for input data...")
 
             # Now read reports as they come in
             while self.is_connected():
